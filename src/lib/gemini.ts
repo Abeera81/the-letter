@@ -14,8 +14,12 @@ import {
  *
  * Model identifier verified against ai.google.dev/gemini-api/docs/models on
  * 2026-09-05 and recorded in MEMORY.md. Do not swap it from memory.
+ *
+ * Deliberately not the newest Flash in the series. Two days from the deadline,
+ * the freshest model is where undocumented quirks live, and 3.5-flash is recent
+ * enough to stand up for the Google AI category.
  */
-export const EXTRACTION_MODEL = "gemini-3.8-flash";
+export const EXTRACTION_MODEL = "gemini-3.5-flash";
 
 /** Failures are typed so the route can fail closed without ever echoing letter text. */
 export type ExtractionErrorCode =

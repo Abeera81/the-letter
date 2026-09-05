@@ -1,13 +1,17 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
-import { MAX_LETTER_CHARS, MIN_LETTER_CHARS, type ExtractionResult } from "@/lib/schema";
+import { MAX_LETTER_CHARS, MIN_LETTER_CHARS, type AbsentItem, type Claim } from "@/lib/schema";
+import type { DroppedClaim } from "@/lib/spanGate";
 
 type Status = "idle" | "reading" | "done" | "error";
 
 type ExplainResponse = {
-  extraction: ExtractionResult;
-  meta: { targetLang: string };
+  documentType: string;
+  verified: Claim[];
+  dropped: DroppedClaim[];
+  absent: AbsentItem[];
+  meta: { droppedCount: number; extractedCount: number; targetLang: string };
 };
 
 export default function LetterInput({ exampleLetter }: { exampleLetter: string }) {
@@ -123,14 +127,33 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
       {status === "done" && result && (
         <section aria-labelledby="raw-heading" className="mt-10">
           <h2 id="raw-heading" className="text-xl font-semibold">
-            What the letter says, as extracted
+            What the letter says, checked against the letter
           </h2>
           <p className="mt-2 text-ink-soft">
-            This is the raw result of the extraction step, before verification and
-            before it is rewritten in plain words. Both of those come next.
+            Every claim below was traced back to the exact words of your letter.
+            Plain language comes next.
           </p>
+
+          <p className="mt-4 rounded-md border-2 border-rule bg-paper-raised p-4">
+            Checked {result.meta.extractedCount}{" "}
+            {result.meta.extractedCount === 1 ? "claim" : "claims"}. Kept{" "}
+            {result.verified.length}.{" "}
+            {result.meta.droppedCount === 0
+              ? "Nothing was dropped."
+              : `Dropped ${result.meta.droppedCount} that could not be traced to the letter.`}
+          </p>
+
           <pre className="mt-4 overflow-x-auto rounded-md border-2 border-rule bg-paper-raised p-4 text-base">
-            {JSON.stringify(result.extraction, null, 2)}
+            {JSON.stringify(
+              {
+                documentType: result.documentType,
+                verified: result.verified,
+                dropped: result.dropped,
+                absent: result.absent,
+              },
+              null,
+              2,
+            )}
           </pre>
         </section>
       )}

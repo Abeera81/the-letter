@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ExtractionError, extractClaims } from "@/lib/gemini";
+import { runSpanGate } from "@/lib/spanGate";
 import { ExplainRequestSchema, MAX_LETTER_CHARS, MIN_LETTER_CHARS } from "@/lib/schema";
 
 /**
@@ -10,8 +11,9 @@ import { ExplainRequestSchema, MAX_LETTER_CHARS, MIN_LETTER_CHARS } from "@/lib/
  * error response. Every failure here fails closed — an error, never a partial
  * explanation.
  *
- * P1 returns the raw extraction result. The Span Gate lands in P2 and the
- * plain-language script in P3.
+ * P2 runs the Span Gate over the extraction before responding, so nothing that
+ * cannot be traced to the letter ever leaves this handler. The plain-language
+ * script is P3.
  */
 
 export const runtime = "nodejs";
@@ -47,9 +49,21 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   try {
     const extraction = await extractClaims(parsed.data.text);
+
+    // ══ THE SPAN GATE ══ Deterministic, no model. Anything the letter does not
+    // actually say is deleted here, before it can reach the user.
+    const { verified, dropped } = runSpanGate(extraction.claims, parsed.data.text);
+
     return NextResponse.json({
-      extraction,
-      meta: { targetLang: parsed.data.targetLang },
+      documentType: extraction.documentType,
+      verified,
+      dropped,
+      absent: extraction.absent,
+      meta: {
+        droppedCount: dropped.length,
+        extractedCount: extraction.claims.length,
+        targetLang: parsed.data.targetLang,
+      },
     });
   } catch (error) {
     if (error instanceof ExtractionError) {
