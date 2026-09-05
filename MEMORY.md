@@ -5,13 +5,12 @@ Durable project state. Update at the end of every session. The next session star
 ---
 
 ## Current status
-**Phase:** P4 code committed — voice wiring built, tested, and verified to fail closed.
-**BLOCKED on the user:** no voice chosen yet, no live end-to-end audio verified, no
-phone test done. See "BLOCKED: ElevenLabs credits" below — this needs the user's
-decision before P4 can be demo-ready.
-**Next action:** once the user decides on ElevenLabs credits, audition voices for real,
-set ELEVENLABS_VOICE_ID, do one live end-to-end check, then hand the phone test back to
-the user. Also still open: the P3 fixture-2 same-model confirmation below.
+**Phase:** P4 — voice chosen (Eric) and wired in. One live end-to-end check pending
+this session, then the phone test is the user's to run.
+**Next action:** run the single budgeted end-to-end /api/explain + /api/speak check on
+fixture 1, confirm real audio comes back, then hand the phone test to the user. After
+that: the P3 fixture-2 same-model confirmation is still open (see below), first thing
+whenever a fresh Gemini quota day is available.
 **Deadline:** 2026-09-07 06:59 UTC (11:59 AM PKT)
 
 ## Decisions locked (do not relitigate)
@@ -31,8 +30,13 @@ the user. Also still open: the P3 fixture-2 same-model confirmation below.
   **Chosen over `gemini-3.8-flash` deliberately.** Two days from the deadline, the newest
   model in a series is where undocumented quirks live, and 3.5-flash is recent enough to
   stand up for the Google AI category. Do not "upgrade" this without a reason.
-- Exact ElevenLabs model identifier used: _TBD at P4_
-- ElevenLabs voice ID chosen + why (this is submission-post material): _TBD at P4_
+- Exact ElevenLabs model identifier used: **`eleven_multilingual_v2`** — the documented
+  default, verified against elevenlabs.io/docs/api-reference/text-to-speech/convert on
+  2026-09-05. Chosen because it's the multilingual model, needed for the Urdu and
+  Spanish paths at P5 with the same voice.
+- ElevenLabs voice ID chosen + why (this is submission-post material): **Eric**
+  (`cjVigY5qzO86Huf0OWal`), catalog label "Smooth, Trustworthy". See "VOICE CHOSEN"
+  below for the full audition story.
 - Any open-source code borrowed (must be credited in the post): _none yet_
 
 ## Verified library facts (do not re-derive from memory)
@@ -102,41 +106,39 @@ All six genuine live claims match exactly at 1.0 and never touch the fallback at
 The `ninety->thirty` and fabricated-approval cases are permanent regression tests in
 `src/lib/spanGate.test.ts`. Do not delete them.
 
-## BLOCKED: ElevenLabs credits — needs the user's decision
-This account has **116 ElevenLabs credits left** (confirmed live via a quota_exceeded
-error on 2026-09-05; character cost is 1:1 with `eleven_multilingual_v2`). A new API key
-would not help even if we wanted one — same account. A real rendered script is roughly
-1,200 characters (measured from a live fixture-1 script), so **116 credits cannot
-produce even one full playback**, let alone three voice auditions plus the phone test
-the user is doing personally.
+## VOICE CHOSEN (submission-post material): Eric
+**`ELEVENLABS_VOICE_ID = cjVigY5qzO86Huf0OWal`** — Eric, ElevenLabs' premade catalog
+label: "Smooth, Trustworthy" (american, conversational, middle-aged).
 
-Stopped before spending any of it. Three audition attempts (River, Sarah, Brian — see
-below) all failed cleanly on quota_exceeded before generating audio, so nothing was
-spent gathering that number.
+Auditioned 7 voices across two rounds, all reading the same real line from fixture 1's
+rendered script — "Your Supplemental Nutrition Assistance Program case has been
+administratively closed..." — so every candidate was judged delivering actual bad news,
+not a neutral sample line.
 
-**What's built and verified without spending credits:**
-- `src/lib/elevenlabs.ts` — POST /v1/text-to-speech/{voice_id}, xi-api-key header,
-  eleven_multilingual_v2, verified against elevenlabs.io/docs/api-reference/text-to-speech/convert
-  on 2026-09-05. 8 unit tests, fetch mocked, zero credits spent.
-- `src/app/api/speak/route.ts` — holds the key server-side, never sees the source
-  letter, only the rendered script. 8 unit tests, mocked.
-- `AudioControls.tsx` — auto-play unless `prefers-reduced-motion`, Stop as the largest
-  first-reached control, slow replay via `playbackRate = 0.7` (no re-synthesis).
-- **Live-verified, zero cost:** with no `ELEVENLABS_VOICE_ID` set, /api/speak fails
-  closed with a clear message and the explanation text still reads fine. Confirmed live
-  against the running dev server.
+Round 1 (picked by label — "calm" / "reassuring" / "comforting" were the closest matches
+in the account's 24 premade voices): River, Sarah, Brian. Brian won on ear — "the
+calmest of the three."
 
-**Not yet done, blocked on credits:** picking a voice for real (see candidates below),
-setting `ELEVENLABS_VOICE_ID`, one live end-to-end check, the user's phone test.
+Round 2, Brian kept as the benchmark to beat, three more picked for the same soft/warm/
+unhurried direction: George ("Warm, Captivating Storyteller"), Eric ("Smooth,
+Trustworthy"), Lily ("Velvety Actress"). **Eric won** — calmest of the full set of seven,
+and the user's own reasoning was that it holds up specifically for delivering hard news,
+which is the one property a demo voice for this product cannot fake or fall back on.
 
-**Voice candidates, chosen by label only (not yet heard):** from the account's 24
-premade voices (fetched live via GET /v1/voices, a metadata call, no character cost):
-- `SAz9YHcvj6GT2YYXdXww` — River, "Relaxed, Neutral, Informative", descriptive: calm
-- `EXAVITQu4vr4xnSDxMaL` — Sarah, "Mature, Reassuring, Confident"
-- `nPczCjzI2devNBz1zQrb` — Brian, "Deep, Resonant and Comforting"
+The account swapped mid-audition: the original had 116 credits left (see the resolved
+incident below) and could not have afforded this. The user created a fresh account with
+a full free allotment specifically so this choice could be made by ear rather than by
+label. All 7 audition clips (7 x 219-character syntheses across both rounds, one shot
+each, no retries) succeeded on the first attempt.
 
-River is the leading candidate — the only one of the 24 whose own label says "calm,"
-which is the exact word Tech Design §6 uses. Not confirmed by ear.
+## RESOLVED: the first ElevenLabs account ran out of credits mid-P4
+The original account had 116 credits left against a ~1,200-character real script — not
+enough for even one full playback. Confirmed live via a quota_exceeded error on
+2026-09-05. Stopped before spending any of it; the user created a second account with a
+fresh allotment rather than have this session guess with what little remained. Not an
+issue with the code — `src/lib/elevenlabs.ts` and `/api/speak` were already built,
+unit-tested (mocked, zero cost), and live-verified to fail closed cleanly with no voice
+configured, before the account was swapped.
 
 ## OPEN: fixture-2 fix needs same-model live confirmation
 Do this FIRST next session, before anything else, budget permitting (see the API budget
