@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { runSpanGate, tokenOverlapRatio } from "./spanGate";
-import { normalize } from "./normalize";
+import { runSpanGate } from "./spanGate";
 import type { Claim } from "./schema";
 
 const SOURCE = readFileSync(
@@ -51,12 +50,19 @@ describe("the Span Gate", () => {
   });
 
   it("drops a partial overlap that sits below the 0.90 threshold", () => {
-    // Half the words are the letter's; the deadline in it is invented.
-    const c = claim("You must submit the requested documentation no later than December 1, 2027 or lose everything.");
+    // Most words are the letter's, but the tail is not and carries no number.
+    const c = claim("You must submit the requested documentation and then wait quietly for somebody to telephone you back.");
     const { verified, dropped } = runSpanGate([c], SOURCE);
     expect(verified).toEqual([]);
     expect(dropped).toHaveLength(1);
     expect(dropped[0].reason).toBe("overlap_below_threshold");
+  });
+
+  it("drops a real quote whose date has been altered, on numeric grounds", () => {
+    const c = claim("You must submit the requested documentation no later than December 1, 2027.");
+    const { verified, dropped } = runSpanGate([c], SOURCE);
+    expect(verified).toEqual([]);
+    expect(dropped[0].reason).toBe("numeric_mismatch");
   });
 
   it("returns empty for an empty claims array without throwing", () => {
@@ -107,18 +113,55 @@ describe("regression: the six claims Gemini actually returned for fixture 1", ()
   });
 });
 
-describe("tokenOverlapRatio", () => {
-  const words = new Set(normalize(SOURCE).split(" ").filter(Boolean));
+/**
+ * These exist because the first version of this gate let them through.
+ *
+ * It compared evidence against the source's whole word SET, ignoring order and
+ * position. A long quote with one invented word still scored above 0.90, and
+ * "ninety days" -> "thirty days" scored a perfect 1.000 because "thirty"
+ * appeared in an unrelated sentence of the letter. Both were measured against
+ * real model output, not invented for a test. Do not delete these.
+ */
+describe("regressions from the whole-word-set overlap bug", () => {
+  const C5 =
+    "Required documentation includes proof of identity for each household member, proof of\ncurrent earned income for the preceding thirty days, and a completed Interim Report Form.";
+  const C6 =
+    "If you disagree with this action you may request a fair hearing within ninety days of the\ndate of this notice.";
 
-  it("is 1 when every word is the letter's", () => {
-    expect(tokenOverlapRatio(normalize("Benefits will terminate"), words)).toBe(1);
+  it("keeps both quotes while they are untouched", () => {
+    const { verified, dropped } = runSpanGate(
+      [claim(C5, { id: "c5" }), claim(C6, { id: "c6" })],
+      SOURCE,
+    );
+    expect(verified.map((c) => c.id)).toEqual(["c5", "c6"]);
+    expect(dropped).toEqual([]);
   });
 
-  it("is 0 for words the letter never uses", () => {
-    expect(tokenOverlapRatio("zzzz qqqq", words)).toBe(0);
+  it("drops ninety days changed to thirty days, which once scored 1.000 and was kept", () => {
+    const c = claim(C6.replace("ninety days", "thirty days"));
+    const { verified, dropped } = runSpanGate([c], SOURCE);
+    expect(verified).toEqual([]);
+    expect(dropped[0].reason).toBe("numeric_mismatch");
   });
 
-  it("is 0 for empty evidence rather than dividing by zero", () => {
-    expect(tokenOverlapRatio("", words)).toBe(0);
+  it("drops thirty days changed to sixty days, which once scored 0.962 and was kept", () => {
+    const c = claim(C5.replace("thirty days", "sixty days"));
+    const { verified, dropped } = runSpanGate([c], SOURCE);
+    expect(verified).toEqual([]);
+    expect(dropped[0].reason).toBe("numeric_mismatch");
+  });
+
+  it("drops a fabricated approval, which once scored 0.636 on scattered words", () => {
+    const c = claim("Your application has been approved and no further action is required.");
+    const { verified, dropped } = runSpanGate([c], SOURCE);
+    expect(verified).toEqual([]);
+    expect(dropped[0].reason).toBe("overlap_below_threshold");
+  });
+
+  it("still tolerates the reformatting the fallback exists for", () => {
+    // A faithful quote that lost its line break and gained stray spacing.
+    const c = claim("If you disagree with this action you may request a fair   hearing within ninety days of the date of this notice.");
+    const { verified } = runSpanGate([c], SOURCE);
+    expect(verified).toHaveLength(1);
   });
 });

@@ -59,32 +59,44 @@ confirm schema-valid claims come back. Then P2 (Span Gate).
   legal strategy. The rendering prompt must state this explicitly, and the phrasing
   needs checking against real output, because the drift is subtle and one word wide.
 
-## KNOWN HOLE IN THE SPAN GATE — decide before P3 ships
-Found at P2 by corrupting live claims and measuring. The exact-match path is sound;
-the **token-overlap fallback is weaker than the Tech Design intends**.
+## Why the Span Gate uses windowed matching (submission-post material)
+The first implementation followed Tech Design v1: exact normalized substring match, then
+a token-overlap fallback at 0.90 against the source's whole word SET. It passed every
+unit test. It was still wrong, and the corruption testing at P2 is what found it.
 
-It compares the evidence against the source's whole word SET, ignoring word order and
-position. Measured on fixture 1:
+A set comparison ignores word order and position, so a quote can be assembled from words
+scattered anywhere in the letter. Measured against real Gemini output on fixture 1:
 
-| corruption | overlap | outcome |
+| corruption | whole-set overlap | outcome |
 |---|---|---|
-| short quote, "September 26, 2026" -> "October 15, 2026" (12 words) | 0.833 | correctly DROPPED |
-| long quote, "thirty days" -> "sixty days" (26 words) | 0.962 | **wrongly KEPT** |
-| long quote, "ninety days" -> "thirty days" (21 words) | 1.000 | **wrongly KEPT** — "thirty" occurs elsewhere in the letter |
+| 12-word quote, "September 26, 2026" -> "October 15, 2026" | 0.833 | correctly dropped |
+| 26-word quote, "thirty days" -> "sixty days" | 0.962 | **wrongly KEPT** |
+| 21-word quote, "ninety days" -> "thirty days" | **1.000** | **wrongly KEPT** |
+| fabricated "your application has been approved" | 0.636 | dropped, but only just |
 
-One invented word in a long quote is ~4% of its tokens, which clears a 0.90 bar. And a
-set test cannot tell that "thirty" came from a different sentence. This is precisely the
-harm PRD 5.2 forbids: an invented date or amount reaching a user who cannot check it.
+The 1.000 is the one to tell in the post: "thirty" appeared in an unrelated sentence of
+the letter, so a set test could not tell the number had been moved into a place it never
+occupied. And one invented word inside a long quote is only ~4% of its tokens, which
+clears a 0.90 bar on score alone. The gate would have spoken an invented deadline to
+someone who could not read the letter to catch it — the exact harm the project exists
+to prevent.
 
-**Proposed fix (prototyped and measured, awaiting approval):**
-1. Compare against the best-matching CONTIGUOUS window of source words, positionally,
-   instead of a document-wide set. Drops the fabricated-approval case from 0.636 to
-   0.182 and the "ninety->thirty" case from 1.000 to 0.952.
-2. Add a numeric guard: if any token that carries a number, date, or amount mismatches
-   inside that window, drop regardless of ratio. Number-words ("ninety", "thirty") count.
+**Replaced with (shipped at P2):**
+1. **Windowed matching** — compare the evidence against the best-matching CONTIGUOUS run
+   of source words, position by position. Fabricated-approval fell 0.636 -> 0.182;
+   "ninety->thirty" fell 1.000 -> 0.952.
+2. **A numeric guard that overrides the ratio** — any positional mismatch on a token
+   carrying a number, date or amount drops the claim outright, however well the rest
+   scores. Number-words count, because these letters write "within ninety days", not 90.
 
-Together these drop all three corruptions above and keep all six genuine live claims,
-which match exactly at 1.0 and never touch the fallback at all.
+Windowing alone was not enough: both single-number swaps still scored above 0.90 after
+it. The guard alone was not enough either: "ninety->thirty" still passed, because
+"thirty" is somewhere in the document. Both were needed, which is why the full fix
+shipped rather than half of it.
+
+All six genuine live claims match exactly at 1.0 and never touch the fallback at all.
+The `ninety->thirty` and fabricated-approval cases are permanent regression tests in
+`src/lib/spanGate.test.ts`. Do not delete them.
 
 ## Open questions
 - iOS Safari autoplay behaviour after the submit gesture — verify on a real device at P4.

@@ -26,7 +26,19 @@ const MIN_EVIDENCE_CHARS = 12;
 /** Deliberately strict. This is a tolerance for reformatting, not for paraphrase. */
 const MIN_OVERLAP_RATIO = 0.9;
 
-export type DropReason = "evidence_too_short" | "evidence_not_found" | "overlap_below_threshold";
+/** Spelled-out numbers, because these letters write "within ninety days", not "90". */
+const NUMBER_WORDS = new Set([
+  "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+  "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
+  "seventeen", "eighteen", "nineteen", "twenty", "thirty", "forty", "fifty",
+  "sixty", "seventy", "eighty", "ninety", "hundred", "thousand",
+]);
+
+export type DropReason =
+  | "evidence_too_short"
+  | "evidence_not_found"
+  | "overlap_below_threshold"
+  | "numeric_mismatch";
 
 export type DroppedClaim = { claim: Claim; reason: DropReason };
 
@@ -35,19 +47,51 @@ export type GatedResult = {
   dropped: DroppedClaim[];
 };
 
+/** A token carrying a date, an amount, or any other number. */
+function isNumeric(token: string): boolean {
+  const bare = token.replace(/[^a-z0-9]/g, "");
+  return /\d/.test(bare) || NUMBER_WORDS.has(bare);
+}
+
+type WindowMatch = { ratio: number; mismatchedNumeric: boolean };
+
 /**
- * Fraction of the evidence's words that appear in the source.
+ * Compares the evidence against the best-matching CONTIGUOUS run of source
+ * words, word position by word position.
  *
- * The fallback exists because a model that quotes faithfully may still drop a
- * line break or tidy a hyphen. It compares against the source's whole word set,
- * so it is a test of "are these the letter's words", not of word order. That is
- * why the threshold sits at 0.90 rather than something forgiving.
+ * The earlier version of this compared against the source's whole word set,
+ * which was far too generous: it ignored order, so a quote could be assembled
+ * from words scattered across the letter. Changing "within ninety days" to
+ * "within thirty days" scored a perfect 1.0, because "thirty" appeared in an
+ * unrelated sentence. Sliding a window fixes that — "thirty" is now compared
+ * against whatever word actually sits in that position.
  */
-export function tokenOverlapRatio(evidence: string, sourceWords: Set<string>): number {
-  const words = evidence.split(" ").filter(Boolean);
-  if (words.length === 0) return 0;
-  const found = words.filter((word) => sourceWords.has(word)).length;
-  return found / words.length;
+function bestWindow(evidenceWords: string[], sourceWords: string[]): WindowMatch {
+  // No match at all is reported as a plain zero ratio, not as a numeric
+  // mismatch: nothing was compared, so nothing disagreed.
+  let best: WindowMatch = { ratio: 0, mismatchedNumeric: false };
+  if (evidenceWords.length === 0) return best;
+
+  for (let start = 0; start + evidenceWords.length <= sourceWords.length; start++) {
+    let hits = 0;
+    let mismatchedNumeric = false;
+
+    for (let i = 0; i < evidenceWords.length; i++) {
+      const word = evidenceWords[i];
+      if (word === sourceWords[start + i]) {
+        hits++;
+      } else if (isNumeric(word)) {
+        // A date or amount that is not where the quote claims it is.
+        mismatchedNumeric = true;
+      }
+    }
+
+    const ratio = hits / evidenceWords.length;
+    if (ratio > best.ratio) best = { ratio, mismatchedNumeric };
+    if (ratio === 1) break;
+  }
+
+  return best;
 }
 
 /**
@@ -56,7 +100,7 @@ export function tokenOverlapRatio(evidence: string, sourceWords: Set<string>): n
  */
 export function runSpanGate(claims: Claim[], sourceText: string): GatedResult {
   const source = normalize(sourceText);
-  const sourceWords = new Set(source.split(" ").filter(Boolean));
+  const sourceWords = source.split(" ").filter(Boolean);
 
   const verified: Claim[] = [];
   const dropped: DroppedClaim[] = [];
@@ -75,18 +119,28 @@ export function runSpanGate(claims: Claim[], sourceText: string): GatedResult {
       continue;
     }
 
-    const overlap = tokenOverlapRatio(evidence, sourceWords);
-    if (overlap >= MIN_OVERLAP_RATIO) {
+    // The fallback exists only because a faithful quote may have lost a line
+    // break or had a hyphen tidied. It is not a licence to paraphrase.
+    const match = bestWindow(evidence.split(" ").filter(Boolean), sourceWords);
+
+    // A wrong date or amount is the exact harm this product exists to prevent,
+    // so it fails the claim outright however well the rest of the words score.
+    if (match.mismatchedNumeric) {
+      dropped.push({ claim, reason: "numeric_mismatch" });
+      continue;
+    }
+
+    if (match.ratio >= MIN_OVERLAP_RATIO) {
       verified.push(claim);
       continue;
     }
 
-    // Both reasons are recorded because they mean different things to a reader
-    // of the audit panel: nothing in this quote is in the letter, versus some
-    // of it is but not enough to trust.
+    // Both remaining reasons are recorded because they mean different things to
+    // a reader of the audit panel: nothing in this quote is in the letter,
+    // versus some of it is but not enough to trust.
     dropped.push({
       claim,
-      reason: overlap === 0 ? "evidence_not_found" : "overlap_below_threshold",
+      reason: match.ratio === 0 ? "evidence_not_found" : "overlap_below_threshold",
     });
   }
 

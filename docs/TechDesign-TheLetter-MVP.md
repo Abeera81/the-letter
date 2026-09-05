@@ -39,7 +39,8 @@ Route Handler: /api/explain            [server, holds GEMINI_API_KEY]
   ├─ 3. ══ THE SPAN GATE ══  (pure TypeScript, no model)
   │       for each claim:
   │         exact normalized substring match?      → keep
-  │         else token-overlap ≥ 0.90?             → keep
+  │         else numeric/date token mismatched?    → DROP
+  │         else windowed overlap ≥ 0.90?          → keep
   │         else                                   → DROP + record reason
   │       output: { verifiedClaims[], droppedClaims[] }
   │
@@ -86,7 +87,14 @@ type AbsentItem = {
 // After the Span Gate
 type GatedResult = {
   verified: Claim[];
-  dropped: Array<{ claim: Claim; reason: "evidence_not_found" | "overlap_below_threshold" }>;
+  dropped: Array<{
+    claim: Claim;
+    reason:
+      | "evidence_too_short"
+      | "evidence_not_found"
+      | "overlap_below_threshold"
+      | "numeric_mismatch";     // a date or amount that is not where the quote claims
+  }>;
 };
 
 // Final API response
@@ -111,14 +119,40 @@ normalize(s):
 
 verify(claim, sourceNormalized):
   e = normalize(claim.evidence)
-  if e.length < 12                          → DROP (too short to be meaningful evidence)
-  if sourceNormalized.includes(e)           → KEEP
-  overlap = tokenOverlapRatio(e, sourceNormalized)
-  if overlap >= 0.90                        → KEEP
-  else                                      → DROP
+  if e.length < 12                          → DROP  evidence_too_short
+  if sourceNormalized.includes(e)           → KEEP  (exact match, the ordinary case)
+
+  # fallback: best-matching CONTIGUOUS window of source words, compared
+  # position by position — not membership in the document's word set
+  m = bestWindow(words(e), words(sourceNormalized))
+  if m.mismatchedNumeric                    → DROP  numeric_mismatch
+  if m.ratio >= 0.90                        → KEEP
+  if m.ratio == 0                           → DROP  evidence_not_found
+  else                                      → DROP  overlap_below_threshold
+
+bestWindow(evidenceWords, sourceWords):
+  slide a window of evidenceWords.length across sourceWords
+  ratio             = positional matches / evidenceWords.length
+  mismatchedNumeric = any position where the words differ AND the evidence
+                      word carries a number, date or amount (digits, or a
+                      spelled-out number word such as "ninety")
+  return the best-scoring window
 ```
 
-Token-overlap fallback exists because models occasionally normalize a hyphen or drop a line break inside an otherwise faithful quote. The threshold is deliberately strict. **If in doubt, drop the claim** — a missing claim is a bad user experience, a fabricated one is a harm.
+The fallback exists because models occasionally normalize a hyphen or drop a line break inside an otherwise faithful quote. It is a tolerance for reformatting, not a licence to paraphrase. **If in doubt, drop the claim** — a missing claim is a bad user experience, a fabricated one is a harm.
+
+**Why windowed matching, and not overlap against the document's word set.** The first implementation compared the evidence against the set of all words in the letter. That ignores order and position, so a quote could be assembled from words scattered across the document. Measured against real model output on fixture 1:
+
+| corruption | whole-set overlap | outcome then | outcome now |
+|---|---|---|---|
+| 12-word quote, `September 26, 2026` → `October 15, 2026` | 0.833 | dropped | dropped (`numeric_mismatch`) |
+| 26-word quote, `thirty days` → `sixty days` | 0.962 | **kept** | dropped (`numeric_mismatch`) |
+| 21-word quote, `ninety days` → `thirty days` | **1.000** | **kept** | dropped (`numeric_mismatch`) |
+| fabricated "your application has been approved" | 0.636 | dropped | dropped, and now scores 0.182 |
+
+The 1.000 is the instructive one: `thirty` appeared in an unrelated sentence of the letter, so a set test could not tell it had been moved. One invented word in a long quote is also only ~4% of its tokens, which clears a 0.90 bar on its own.
+
+**The numeric guard** is separate from the ratio and overrides it. A wrong date or amount is the specific harm this product exists to prevent (PRD §5.2), and a single altered number will never move a long quote's ratio far enough to fail on score alone. So any positional mismatch on a numeric token drops the claim outright, however well the rest of the words agree.
 
 Log the drop count. Surface it. A demo where the gate visibly drops something is stronger than one where it drops nothing.
 
