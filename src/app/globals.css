@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+/* The user may have poor vision, bad lighting, and a cracked screen.
+   Contrast here is deliberately well above WCAG 2.2 AA. */
+@theme {
+  --color-ink: #15181c;          /* body text on paper: 16.6:1 */
+  --color-ink-soft: #4a5159;     /* secondary text on paper: 7.6:1 */
+  --color-paper: #f6f7f7;
+  --color-paper-raised: #ffffff;
+  --color-rule: #d3d7da;
+  --color-accent: #0b4f60;       /* controls: 8.9:1 on paper */
+  --color-accent-strong: #073744;
+  --color-focus: #b8541a;
+
+  --font-sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, "Noto Sans", "Noto Nastaliq Urdu", sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 1.125rem;  /* 18px floor — never smaller */
+  line-height: 1.6;
+}
+
+/* Visible focus everywhere, never removed. */
+:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+/* Motion only ever responds to a user action, and stops entirely on request. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

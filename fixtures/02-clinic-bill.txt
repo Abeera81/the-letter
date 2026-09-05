@@ -1,0 +1,31 @@
+[SYNTHETIC TEST LETTER — not a real bill. No real person, account, or provider appears in this file.]
+
+RIVERSIDE COMMUNITY HEALTH CENTER
+PATIENT ACCOUNT STATEMENT
+
+Statement Date: September 3, 2026
+Account Number: 0000-SAMPLE
+Guarantor: SAMPLE PATIENT
+
+SUMMARY OF ACCOUNT
+
+Previous balance                                            0.00
+Charges this period                                     1,284.50
+Insurance payments and adjustments                        -412.00
+Patient payments                                             0.00
+
+AMOUNT DUE                                                872.50
+
+DETAIL OF CHARGES
+
+08/19/2026    Facility fee, outpatient                    640.00
+08/19/2026    Laboratory, comprehensive panel             318.50
+08/19/2026    Supply charge                               326.00
+
+Payment is due upon receipt. Accounts remaining unpaid may be referred to an outside
+collection agency in accordance with the Center's financial policy.
+
+Financial assistance may be available to qualifying patients. Ask a staff member for an
+application at your next visit.
+
+This statement reflects charges only. It is not a determination of insurance benefits.
