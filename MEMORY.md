@@ -5,10 +5,13 @@ Durable project state. Update at the end of every session. The next session star
 ---
 
 ## Current status
-**Phase:** P3 committed — rendering call shipped, one item needs same-model live
-confirmation. See "OPEN: fixture-2 fix needs same-model verification" below.
-**Next action:** budget-permitting, one live call against gemini-3.5-flash on fixture 2
-to confirm the `explanation` absent field actually fires on the shipped model, THEN P4.
+**Phase:** P4 code committed — voice wiring built, tested, and verified to fail closed.
+**BLOCKED on the user:** no voice chosen yet, no live end-to-end audio verified, no
+phone test done. See "BLOCKED: ElevenLabs credits" below — this needs the user's
+decision before P4 can be demo-ready.
+**Next action:** once the user decides on ElevenLabs credits, audition voices for real,
+set ELEVENLABS_VOICE_ID, do one live end-to-end check, then hand the phone test back to
+the user. Also still open: the P3 fixture-2 same-model confirmation below.
 **Deadline:** 2026-09-07 06:59 UTC (11:59 AM PKT)
 
 ## Decisions locked (do not relitigate)
@@ -99,6 +102,42 @@ All six genuine live claims match exactly at 1.0 and never touch the fallback at
 The `ninety->thirty` and fabricated-approval cases are permanent regression tests in
 `src/lib/spanGate.test.ts`. Do not delete them.
 
+## BLOCKED: ElevenLabs credits — needs the user's decision
+This account has **116 ElevenLabs credits left** (confirmed live via a quota_exceeded
+error on 2026-09-05; character cost is 1:1 with `eleven_multilingual_v2`). A new API key
+would not help even if we wanted one — same account. A real rendered script is roughly
+1,200 characters (measured from a live fixture-1 script), so **116 credits cannot
+produce even one full playback**, let alone three voice auditions plus the phone test
+the user is doing personally.
+
+Stopped before spending any of it. Three audition attempts (River, Sarah, Brian — see
+below) all failed cleanly on quota_exceeded before generating audio, so nothing was
+spent gathering that number.
+
+**What's built and verified without spending credits:**
+- `src/lib/elevenlabs.ts` — POST /v1/text-to-speech/{voice_id}, xi-api-key header,
+  eleven_multilingual_v2, verified against elevenlabs.io/docs/api-reference/text-to-speech/convert
+  on 2026-09-05. 8 unit tests, fetch mocked, zero credits spent.
+- `src/app/api/speak/route.ts` — holds the key server-side, never sees the source
+  letter, only the rendered script. 8 unit tests, mocked.
+- `AudioControls.tsx` — auto-play unless `prefers-reduced-motion`, Stop as the largest
+  first-reached control, slow replay via `playbackRate = 0.7` (no re-synthesis).
+- **Live-verified, zero cost:** with no `ELEVENLABS_VOICE_ID` set, /api/speak fails
+  closed with a clear message and the explanation text still reads fine. Confirmed live
+  against the running dev server.
+
+**Not yet done, blocked on credits:** picking a voice for real (see candidates below),
+setting `ELEVENLABS_VOICE_ID`, one live end-to-end check, the user's phone test.
+
+**Voice candidates, chosen by label only (not yet heard):** from the account's 24
+premade voices (fetched live via GET /v1/voices, a metadata call, no character cost):
+- `SAz9YHcvj6GT2YYXdXww` — River, "Relaxed, Neutral, Informative", descriptive: calm
+- `EXAVITQu4vr4xnSDxMaL` — Sarah, "Mature, Reassuring, Confident"
+- `nPczCjzI2devNBz1zQrb` — Brian, "Deep, Resonant and Comforting"
+
+River is the leading candidate — the only one of the 24 whose own label says "calm,"
+which is the exact word Tech Design §6 uses. Not confirmed by ear.
+
 ## OPEN: fixture-2 fix needs same-model live confirmation
 Do this FIRST next session, before anything else, budget permitting (see the API budget
 rule below — this is exactly the kind of "genuinely needs a fresh call" case it allows).
@@ -144,4 +183,5 @@ on the one or two things that genuinely need a fresh one.
 | 2026-09-05 | P2 | spanGate.ts (94 lines, no model), 13 gate tests, wired into /api/explain, drop count surfaced in the UI. Live run on gemini-3.5-flash: 6 claims, 0 dropped, all matched by exact normalized substring. Four corruptions all dropped. Found the overlap-fallback hole above. | Decide the fallback fix, then P3 |
 | 2026-09-05 | Span Gate fix | Windowed matching + numeric guard, replacing the whole-word-set overlap. Live-verified on fixtures 1 and 2 (6/6, 4/4 kept, 0 false drops) plus a 6-case corruption sweep, all correctly dropped. 45 tests green. | Continue to P3 |
 | 2026-09-05 | P3 | render.ts (Gemini call #2, never receives the letter), prompt isolation test asserted against the full serialized request body, fixed footer appended by code, wired into /api/explain. Fair-hearing-vs-action-step ordering fixed and live-verified on fixture 1. Added the `explanation` absent field for fixture 2's schema gap — NOT yet live-confirmed on gemini-3.5-flash, see OPEN item above. Ran the daily API quota dry mid-verification — see INCIDENT above. 60 tests green. | Live-confirm the explanation field (budget permitting), then P4 |
+| 2026-09-05 | P4 (code) | elevenlabs.ts, /api/speak, AudioControls.tsx (auto-play, reduced-motion suppression, prominent Stop, slow replay). 16 new unit tests, mocked, zero credits spent. Fail-closed path live-verified with no voice configured. Hit a second quota wall: ElevenLabs account has 116 credits left, a real script needs ~1,200 — can't audition or verify end-to-end. 76 tests green. | User decides on ElevenLabs credits, see BLOCKED above |
 | 2026-09-05 | P1 gate closed | Fixture 1 ran live, first attempt, no retry: 6 claims, 3 absent items. All 6 evidence fields were byte-exact substrings of the raw fixture, line breaks preserved. No eligibility or advice language in any statement. Absent list correctly omitted deadline/reason/appeal_route, all of which the letter does contain. | P2 Span Gate |
