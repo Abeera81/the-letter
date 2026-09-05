@@ -116,6 +116,14 @@ Then exercise the actual user flow in a browser. For anything user-visible, chec
 
 State explicitly what you verified and what you did not.
 
+**Budget live Gemini calls.** The free tier is 20 requests/day per project — not per
+key, so a new key does not help. P3 ran it dry mid-verification. Verify against saved
+model output (a captured live response, a fixture-derived regression test) wherever
+that answers the question; spend a live call only on the one or two things that
+genuinely need a fresh one, such as confirming a changed prompt actually changes model
+behavior. If a session is about to make several live calls in a row, stop and ask
+whether a saved-output check would do instead.
+
 ## 10. When you're stuck or the plan is wrong
 
 Say so early. Do not silently substitute an approach.

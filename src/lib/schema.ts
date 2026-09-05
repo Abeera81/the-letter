@@ -23,6 +23,7 @@ export const CLAIM_KINDS = [
 export const ABSENT_FIELDS = [
   "deadline",
   "reason",
+  "explanation",
   "phone",
   "contact_name",
   "appeal_route",
@@ -56,7 +57,11 @@ export const ClaimSchema = z.object({
 export type Claim = z.infer<typeof ClaimSchema>;
 
 export const AbsentItemSchema = z.object({
-  field: z.enum(ABSENT_FIELDS).describe("The kind of information the letter fails to give."),
+  field: z
+    .enum(ABSENT_FIELDS)
+    .describe(
+      'The kind of information the letter fails to give. "reason" is why an action was taken (a case closed, a notice sent); "explanation" is what a charge, fee, or line item is for. A medical bill with an unexplained charge is missing "explanation", not "reason".',
+    ),
   note: z
     .string()
     .min(1)

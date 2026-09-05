@@ -5,9 +5,10 @@ Durable project state. Update at the end of every session. The next session star
 ---
 
 ## Current status
-**Phase:** P1 — code complete, gate NOT yet passed (needs a live Gemini call)
-**Next action:** add GEMINI_API_KEY to .env.local, run fixture 1 through /api/explain,
-confirm schema-valid claims come back. Then P2 (Span Gate).
+**Phase:** P3 committed — rendering call shipped, one item needs same-model live
+confirmation. See "OPEN: fixture-2 fix needs same-model verification" below.
+**Next action:** budget-permitting, one live call against gemini-3.5-flash on fixture 2
+to confirm the `explanation` absent field actually fires on the shipped model, THEN P4.
 **Deadline:** 2026-09-07 06:59 UTC (11:59 AM PKT)
 
 ## Decisions locked (do not relitigate)
@@ -98,6 +99,39 @@ All six genuine live claims match exactly at 1.0 and never touch the fallback at
 The `ninety->thirty` and fabricated-approval cases are permanent regression tests in
 `src/lib/spanGate.test.ts`. Do not delete them.
 
+## OPEN: fixture-2 fix needs same-model live confirmation
+Do this FIRST next session, before anything else, budget permitting (see the API budget
+rule below — this is exactly the kind of "genuinely needs a fresh call" case it allows).
+
+At P3, fixture 2's absent-info gap ("the letter does not explain what this charge is
+for") had no schema field to land in — `reason` only covers why an ACTION was taken.
+Added `explanation` as its own ABSENT_FIELDS value and sharpened the extraction prompt
+with a concrete example matching fixture 2's own "DETAIL OF CHARGES" line items.
+
+**This was never confirmed live on the shipped model (`gemini-3.5-flash`).** The
+20-requests/day quota ran out mid-verification — see the incident below. The only signal
+gathered was a diagnostic run against `gemini-2.5-flash` (a separate quota bucket, NOT
+the shipped model), which does not honor structured output cleanly (wraps JSON in a
+markdown fence) but did spontaneously produce the phrase "explanation for charges
+(beyond category)" in free text — evidence the prompt wording communicates the right
+concept, not proof the schema-conformant version works on 3.5-flash.
+
+Risk is judged small: nothing is built on top of this yet, and the fair-hearing ordering
+fix from the same P3 session IS live-verified and unaffected. Committed anyway rather
+than burn ~half a day's budget waiting for the quota to reset. First live call next
+session should be exactly this: run fixture 2 through /api/explain, confirm
+`absent` includes `{ field: "explanation", ... }`. If it doesn't fire, strengthen the
+extraction prompt further before touching anything else.
+
+## INCIDENT: ran the Gemini free-tier quota dry mid-P3
+`gemini-3.5-flash` free tier is **20 requests/day per project**, resetting at midnight
+Pacific (confirmed against ai.google.dev/gemini-api/docs/rate-limits, not assumed). A new
+API key does not help — the cap is per-project, not per-key. Repeated live re-runs and
+corruption checks across P2 and P3 burned through it mid-verification of the fixture-2
+fix, forcing the tradeoff logged above. **New standing rule, also in AGENTS.md: budget
+live calls.** Verify against saved model output where possible; spend a live call only
+on the one or two things that genuinely need a fresh one.
+
 ## Open questions
 - iOS Safari autoplay behaviour after the submit gesture — verify on a real device at P4.
 - Urdu RTL transcript layout at 360px — verify at P5, not later.
@@ -108,4 +142,6 @@ The `ninety->thirty` and fabricated-approval cases are permanent regression test
 | 2026-09-05 | P0 | Next 16 + React 19 + TS + Tailwind 4 + Zod 4 skeleton, Vitest on the node env, four synthetic fixtures, accessibility floor in globals.css, privacy statement on the page | Connect Vercel |
 | 2026-09-05 | P1 | normalize.ts, schema.ts (Zod + generated JSON Schema), gemini.ts extraction call, /api/explain, LetterInput with example-letter empty state, raw JSON on screen. 29 tests green. | Live Gemini call to pass the P1 gate |
 | 2026-09-05 | P2 | spanGate.ts (94 lines, no model), 13 gate tests, wired into /api/explain, drop count surfaced in the UI. Live run on gemini-3.5-flash: 6 claims, 0 dropped, all matched by exact normalized substring. Four corruptions all dropped. Found the overlap-fallback hole above. | Decide the fallback fix, then P3 |
+| 2026-09-05 | Span Gate fix | Windowed matching + numeric guard, replacing the whole-word-set overlap. Live-verified on fixtures 1 and 2 (6/6, 4/4 kept, 0 false drops) plus a 6-case corruption sweep, all correctly dropped. 45 tests green. | Continue to P3 |
+| 2026-09-05 | P3 | render.ts (Gemini call #2, never receives the letter), prompt isolation test asserted against the full serialized request body, fixed footer appended by code, wired into /api/explain. Fair-hearing-vs-action-step ordering fixed and live-verified on fixture 1. Added the `explanation` absent field for fixture 2's schema gap — NOT yet live-confirmed on gemini-3.5-flash, see OPEN item above. Ran the daily API quota dry mid-verification — see INCIDENT above. 60 tests green. | Live-confirm the explanation field (budget permitting), then P4 |
 | 2026-09-05 | P1 gate closed | Fixture 1 ran live, first attempt, no retry: 6 claims, 3 absent items. All 6 evidence fields were byte-exact substrings of the raw fixture, line breaks preserved. No eligibility or advice language in any statement. Absent list correctly omitted deadline/reason/appeal_route, all of which the letter does contain. | P2 Span Gate |

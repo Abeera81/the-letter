@@ -7,6 +7,7 @@ import type { DroppedClaim } from "@/lib/spanGate";
 type Status = "idle" | "reading" | "done" | "error";
 
 type ExplainResponse = {
+  script: string;
   documentType: string;
   verified: Claim[];
   dropped: DroppedClaim[];
@@ -127,11 +128,24 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
       {status === "done" && result && (
         <section aria-labelledby="raw-heading" className="mt-10">
           <h2 id="raw-heading" className="text-xl font-semibold">
-            What the letter says, checked against the letter
+            What your letter says
           </h2>
+
+          {/* The script is the product. Everything below it is the evidence. */}
+          <div className="mt-4 rounded-md border-2 border-accent bg-paper-raised p-5 text-xl leading-relaxed">
+            {result.script.split(/\n/).map((line, i) =>
+              line.trim() === "" ? null : (
+                <p key={i} className="mt-4 first:mt-0">
+                  {line}
+                </p>
+              ),
+            )}
+          </div>
+
+          <h3 className="mt-10 text-lg font-semibold">Where this came from</h3>
           <p className="mt-2 text-ink-soft">
-            Every claim below was traced back to the exact words of your letter.
-            Plain language comes next.
+            Every sentence above was built only from claims traced back to the exact
+            words of your letter.
           </p>
 
           <p className="mt-4 rounded-md border-2 border-rule bg-paper-raised p-4">

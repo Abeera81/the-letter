@@ -80,7 +80,11 @@ type Claim = {
 };
 
 type AbsentItem = {
-  field: "deadline" | "reason" | "phone" | "contact_name" | "appeal_route" | "amount";
+  field: "deadline" | "reason" | "explanation" | "phone" | "contact_name" | "appeal_route" | "amount";
+  // "reason" = why an ACTION was taken (a case closed, a notice sent).
+  // "explanation" = what a CHARGE or fee is for. Added at P3: fixture 2 (a
+  // medical bill with an unexplained charge) has no reason to give, but the
+  // absence is exactly the demo point in PRD 9 and needed its own field.
   note: string;                       // "The letter does not give a phone number."
 };
 
@@ -255,7 +259,9 @@ the-letter/
         └── PrintCard.tsx
 ```
 
-Keep `spanGate.ts` under ~80 lines and heavily commented. Judges who open the repo will look for the thing the post claims. Make it easy to find and pleasant to read.
+Keep `spanGate.ts` around 150 lines and heavily commented. Judges who open the repo will look for the thing the post claims. Make it easy to find and pleasant to read.
+
+*(This budget was ~80 lines until P2. It grew when the overlap fallback was replaced with windowed contiguous matching plus the numeric guard described in §4 — the original set comparison was small, readable, and wrong. Correctness wins over the line count here; keep the file to one function and two helpers rather than trimming the comments.)*
 
 ## 9. Environment
 

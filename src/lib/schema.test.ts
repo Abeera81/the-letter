@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  AbsentItemSchema,
   ClaimSchema,
   ExplainRequestSchema,
   ExtractionResultSchema,
@@ -58,6 +59,32 @@ describe("schema boundary", () => {
     for (const key of ["documentType", "claims", "absent", "evidence", "statement", "kind"]) {
       expect(json).toContain(key);
     }
+  });
+});
+
+describe("absent field: reason vs explanation", () => {
+  it("accepts explanation as its own absent field, distinct from reason", () => {
+    // Added at P3: fixture 2 (a medical bill) has no field that can say "the
+    // letter does not explain what this charge is for" — "reason" only
+    // covers why an ACTION was taken. Both must be independently valid.
+    expect(
+      AbsentItemSchema.parse({
+        field: "explanation",
+        note: "The letter does not explain what this charge is for.",
+      }).field,
+    ).toBe("explanation");
+    expect(
+      AbsentItemSchema.parse({
+        field: "reason",
+        note: "The letter does not say why the case was closed.",
+      }).field,
+    ).toBe("reason");
+  });
+
+  it("rejects a field the union does not define", () => {
+    expect(() =>
+      AbsentItemSchema.parse({ field: "charge_purpose", note: "x".repeat(20) }),
+    ).toThrow();
   });
 });
 
