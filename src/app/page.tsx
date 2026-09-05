@@ -1,28 +1,42 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import LetterInput from "@/components/LetterInput";
+
+/**
+ * The example letter is a committed synthetic fixture, read at request time on
+ * the server. It is the empty state: an invitation to try the thing, for
+ * someone who does not have their letter typed out yet.
+ */
+function loadExampleLetter(): string {
+  return readFileSync(join(process.cwd(), "fixtures", "01-snap-closure.txt"), "utf8").trim();
+}
+
 export default function Home() {
   return (
     <main className="mx-auto max-w-[68ch] px-5 py-12 sm:py-16">
-      <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-        The Letter
-      </h1>
+      <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">The Letter</h1>
 
-      <p className="mt-4 text-xl text-ink">
+      <p className="mt-4 text-xl">
         Paste the letter you are afraid of. Hear what it actually says.
       </p>
 
       <p className="mt-6 text-ink-soft">
         Official letters are written for the office that sent them, not for the
-        person who opens them. This reads one back to you in plain words, in
-        your language, out loud — and tells you only what the letter really
-        says.
+        person who opens them. This reads one back to you in plain words — and
+        tells you only what the letter really says.
       </p>
+
+      <hr className="my-10 border-rule" />
+
+      <LetterInput exampleLetter={loadExampleLetter()} />
 
       <hr className="my-10 border-rule" />
 
       <h2 className="text-xl font-semibold">Nothing you paste is kept</h2>
       <p className="mt-3 text-ink-soft">
         There are no accounts and no database. Your letter stays in memory only
-        while it is being explained, and it is never written down, never logged,
-        and never shown to anyone else.
+        while it is being read, and it is never written down, never logged, and
+        never shown to anyone else.
       </p>
 
       <p className="mt-10 text-base text-ink-soft">
