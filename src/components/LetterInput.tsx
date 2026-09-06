@@ -93,76 +93,83 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
 
   return (
     <div>
-      <form onSubmit={handleSubmit} className="max-w-[68ch]">
-        <label htmlFor={textareaId} className="block text-xl font-semibold">
-          Paste your letter here
-        </label>
-        <p id={`${textareaId}-hint`} className="mt-2 text-ink-soft">
-          Type it or paste it. Nothing you paste is saved.
-        </p>
+      <form onSubmit={handleSubmit}>
+        <div className="max-w-[68ch]">
+          <label htmlFor={textareaId} className="block text-xl font-semibold">
+            Paste your letter here
+          </label>
+          <p id={`${textareaId}-hint`} className="mt-2 text-ink-soft">
+            Type it or paste it. Nothing you paste is saved.
+          </p>
 
-        <textarea
-          id={textareaId}
-          ref={textareaRef}
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          aria-describedby={`${textareaId}-hint`}
-          maxLength={MAX_LETTER_CHARS}
-          rows={12}
-          spellCheck={false}
-          className="mt-4 block w-full rounded-md border-2 border-rule bg-paper-raised p-4 text-ink"
-        />
+          <textarea
+            id={textareaId}
+            ref={textareaRef}
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            aria-describedby={`${textareaId}-hint`}
+            maxLength={MAX_LETTER_CHARS}
+            rows={12}
+            spellCheck={false}
+            className="mt-4 block w-full rounded-md border-2 border-rule bg-paper-raised p-4 text-ink"
+          />
+        </div>
 
-        {/* Tight above (this is a setup choice made right after pasting the
-            letter), a deliberately larger gap below (it is not one more
-            action button alongside Explain/Try an example). */}
-        <fieldset className="mt-3">
-          <legend className="text-lg font-semibold">Language</legend>
-          <div className="mt-2 flex flex-wrap gap-3">
-            {LANGUAGE_OPTIONS.map((option) => {
-              const inputId = `${languageGroupId}-${option.value}`;
-              return (
-                <label
-                  key={option.value}
-                  htmlFor={inputId}
-                  className="flex min-h-[3rem] cursor-pointer items-center gap-2 rounded-md border-2 border-rule bg-paper-raised px-4 py-2 has-[:checked]:border-accent has-[:checked]:bg-accent has-[:checked]:text-white"
-                >
-                  <input
-                    id={inputId}
-                    type="radio"
-                    name="targetLang"
-                    value={option.value}
-                    checked={targetLang === option.value}
-                    onChange={() => setTargetLang(option.value)}
-                    className="h-5 w-5"
-                  />
-                  <span className="text-lg">{option.label}</span>
-                </label>
-              );
-            })}
+        {/* One setup row, not two stacked: language on one side, the actions
+            on the other, sharing the space instead of language sitting alone
+            above a wide gap. Not capped at 68ch like the textarea above —
+            this row wants the page's full width to lay the two sides out
+            side by side; it wraps to stacked only when it genuinely doesn't
+            fit. */}
+        <div className="mt-6 flex flex-wrap items-end justify-between gap-x-8 gap-y-6">
+          <fieldset>
+            <legend className="text-lg font-semibold">Language</legend>
+            <div className="mt-2 flex flex-wrap gap-3">
+              {LANGUAGE_OPTIONS.map((option) => {
+                const inputId = `${languageGroupId}-${option.value}`;
+                return (
+                  <label
+                    key={option.value}
+                    htmlFor={inputId}
+                    className="flex min-h-[3rem] cursor-pointer items-center gap-2 rounded-md border-2 border-rule bg-paper-raised px-4 py-2 has-[:checked]:border-accent has-[:checked]:bg-accent has-[:checked]:text-white"
+                  >
+                    <input
+                      id={inputId}
+                      type="radio"
+                      name="targetLang"
+                      value={option.value}
+                      checked={targetLang === option.value}
+                      onChange={() => setTargetLang(option.value)}
+                      className="h-5 w-5"
+                    />
+                    <span className="text-lg">{option.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="submit"
+              disabled={tooShort || status === "explaining"}
+              className="min-h-[3rem] rounded-md bg-accent px-6 py-3 text-lg font-semibold text-white disabled:bg-ink-soft disabled:opacity-60"
+            >
+              {status === "explaining" ? "Explaining your letter" : "Explain this letter"}
+            </button>
+
+            <button
+              type="button"
+              onClick={useExample}
+              className="min-h-[3rem] rounded-md border-2 border-accent px-6 py-3 text-lg font-semibold text-accent"
+            >
+              Try an example letter
+            </button>
           </div>
-        </fieldset>
-
-        <div className="mt-8 flex flex-wrap gap-3">
-          <button
-            type="submit"
-            disabled={tooShort || status === "explaining"}
-            className="min-h-[3rem] rounded-md bg-accent px-6 py-3 text-lg font-semibold text-white disabled:bg-ink-soft disabled:opacity-60"
-          >
-            {status === "explaining" ? "Explaining your letter" : "Explain this letter"}
-          </button>
-
-          <button
-            type="button"
-            onClick={useExample}
-            className="min-h-[3rem] rounded-md border-2 border-accent px-6 py-3 text-lg font-semibold text-accent"
-          >
-            Try an example letter
-          </button>
         </div>
 
         {tooShort && text.length > 0 && (
-          <p className="mt-3 text-ink-soft">
+          <p className="mt-3 max-w-[68ch] text-ink-soft">
             That is too short to explain. Paste at least {MIN_LETTER_CHARS} characters.
           </p>
         )}
