@@ -196,7 +196,7 @@ A test asserts the model is never even *asked* for this line, in any language. T
 
 {% embed https://github.com/Abeera81/the-letter %}
 
-Repository created **5 September 2026**, inside the challenge window. Next 16, React 19, TypeScript, Tailwind 4, Zod 4. Nothing you paste is stored, logged or written to disk — no database, no auth, no persistence, which is also why the app has no navigation at all. **121 tests across 11 files.** No borrowed open-source code beyond the framework dependencies.
+Repository created **5 September 2026**, inside the challenge window. Next 16, React 19, TypeScript, Tailwind 4, Zod 4. Nothing you paste is stored, logged or written to disk — no database, no auth, no persistence, which is also why the app has no navigation at all. **121 tests across 12 files.** No borrowed open-source code beyond the framework dependencies.
 
 Worth opening: `src/lib/spanGate.ts` (the gate, ~140 lines, no model in it), `src/lib/render.ts` (call #2, structurally blind to the letter), `src/lib/spanGate.test.ts` (the corruption regressions above), `src/lib/render.test.ts` (the sentinel test), and `fixtures/04-hostile-injection.txt`.
 
