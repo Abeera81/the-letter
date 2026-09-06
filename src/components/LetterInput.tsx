@@ -5,7 +5,7 @@ import { MAX_LETTER_CHARS, MIN_LETTER_CHARS, type AbsentItem, type Claim } from 
 import type { DroppedClaim } from "@/lib/spanGate";
 import AudioControls from "./AudioControls";
 
-type Status = "idle" | "reading" | "done" | "error";
+type Status = "idle" | "explaining" | "done" | "error";
 
 type ExplainResponse = {
   script: string;
@@ -28,7 +28,7 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    setStatus("reading");
+    setStatus("explaining");
     setErrorMessage("");
     setResult(null);
 
@@ -88,10 +88,10 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
         <div className="mt-5 flex flex-wrap gap-3">
           <button
             type="submit"
-            disabled={tooShort || status === "reading"}
+            disabled={tooShort || status === "explaining"}
             className="min-h-[3rem] rounded-md bg-accent px-6 py-3 text-lg font-semibold text-white disabled:bg-ink-soft disabled:opacity-60"
           >
-            {status === "reading" ? "Reading the letter" : "Read this letter to me"}
+            {status === "explaining" ? "Explaining your letter" : "Explain this letter"}
           </button>
 
           <button
@@ -105,19 +105,19 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
 
         {tooShort && text.length > 0 && (
           <p className="mt-3 text-ink-soft">
-            That is too short to read. Paste at least {MIN_LETTER_CHARS} characters.
+            That is too short to explain. Paste at least {MIN_LETTER_CHARS} characters.
           </p>
         )}
       </form>
 
       {/* Status is announced, never only shown. No time limit, nothing auto-advances. */}
       <p aria-live="polite" className="sr-only">
-        {status === "reading" ? "Reading the letter." : ""}
-        {status === "done" ? "The letter has been read." : ""}
+        {status === "explaining" ? "Explaining your letter." : ""}
+        {status === "done" ? "The letter has been explained." : ""}
       </p>
 
-      {status === "reading" && (
-        <p className="mt-8 text-lg">Reading the letter. This takes a few seconds.</p>
+      {status === "explaining" && (
+        <p className="mt-8 text-lg">Explaining your letter. This takes a few seconds.</p>
       )}
 
       {status === "error" && (

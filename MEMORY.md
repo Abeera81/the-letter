@@ -5,13 +5,12 @@ Durable project state. Update at the end of every session. The next session star
 ---
 
 ## Current status
-**Phase:** P4 — deployed, working on web. Fresh Gemini key got the iPhone attempt past
-the quota wall and found a real bug: Safari's autoplay rejection was mislabeled as a
-network failure. Fixed (see "RESOLVED: a real bug" below), not yet phone-verified.
-**Next action:** one more phone check on the deployed site — confirm the "blocked"
-state appears correctly and its Play button works on real iOS Safari. That is the
-literal P4 gate; nothing else in this project depends on a phone test more than this
-one line does. After that: the P3 fixture-2 same-model confirmation is still open.
+**Phase:** P4 CLOSED. Confirmed live on real iOS Safari: the "blocked" state appears
+correctly (Play button, no scary error), tapping Play starts real audio, slow replay
+works. Full pipeline verified end to end on the actual deploy, on the actual target
+device, by the user.
+**Next action:** propose P5 (language selector, Urdu first-class including RTL). Also
+still open, unrelated to P4: the P3 fixture-2 same-model confirmation below.
 **Deadline:** 2026-09-07 06:59 UTC (11:59 AM PKT)
 
 ## Decisions locked (do not relitigate)
@@ -203,6 +202,25 @@ still owed:** does the "blocked" state actually appear and does its Play button 
 work on real iOS Safari. This is the single verification worth spending on despite the
 user's stated quota pause — it is the literal P4 gate.
 
+**CONFIRMED on real iOS Safari, closing P4.** Explain succeeded, audio did not
+auto-play (Safari's policy, as diagnosed), the "blocked" Play button appeared instead of
+an error, tapping it started real audio, and slow replay worked. The user separately
+noted that Stop-then-Play restarts from the beginning rather than resuming — accepted as
+correct, ordinary audio-control behavior, explicitly not worth fixing.
+
+## Copy fix: the submit button oversold what it does
+The user's phone test also surfaced a real UX mismatch: the submit button read "Read
+this letter to me," but the actual first result is the plain-language TEXT explanation
+— voice is a separate, subsequent step (tap Play, or auto-play when the browser allows
+it, which iOS Safari often will not). The label promised audio the button doesn't
+deliver on its own.
+
+Renamed throughout `LetterInput.tsx` for consistency, including the internal status
+value, not just the label: "Read this letter to me" → "Explain this letter",
+"Reading the letter" → "Explaining your letter", "The letter has been read." → "The
+letter has been explained." This also better matches the product's own framing — the
+fixed footer already says "This explains the letter."
+
 ## OPEN: fixture-2 fix needs same-model live confirmation
 Do this FIRST next session, before anything else, budget permitting (see the API budget
 rule below — this is exactly the kind of "genuinely needs a fresh call" case it allows).
@@ -250,3 +268,4 @@ on the one or two things that genuinely need a fresh one.
 | 2026-09-05 | P3 | render.ts (Gemini call #2, never receives the letter), prompt isolation test asserted against the full serialized request body, fixed footer appended by code, wired into /api/explain. Fair-hearing-vs-action-step ordering fixed and live-verified on fixture 1. Added the `explanation` absent field for fixture 2's schema gap — NOT yet live-confirmed on gemini-3.5-flash, see OPEN item above. Ran the daily API quota dry mid-verification — see INCIDENT above. 60 tests green. | Live-confirm the explanation field (budget permitting), then P4 |
 | 2026-09-05 | P4 (code) | elevenlabs.ts, /api/speak, AudioControls.tsx (auto-play, reduced-motion suppression, prominent Stop, slow replay). 16 new unit tests, mocked, zero credits spent. Fail-closed path live-verified with no voice configured. Hit a second quota wall: ElevenLabs account has 116 credits left, a real script needs ~1,200 — can't audition or verify end-to-end. 76 tests green. | User decides on ElevenLabs credits, see BLOCKED above |
 | 2026-09-05 | P1 gate closed | Fixture 1 ran live, first attempt, no retry: 6 claims, 3 absent items. All 6 evidence fields were byte-exact substrings of the raw fixture, line breaks preserved. No eligibility or advice language in any statement. Absent list correctly omitted deadline/reason/appeal_route, all of which the letter does contain. | P2 Span Gate |
+| 2026-09-06 | P4 CLOSED | Eric voice chosen and wired in (7 auditions, 2 rounds, see VOICE CHOSEN above). Production outage on first deploy diagnosed and fixed with classifyExtractionError (auth_failed/quota_exceeded, 10 tests, zero API calls). Second real bug found and fixed: Safari autoplay rejection was mislabeled as a network failure — split load/play into separate try/catches, added a "blocked" status matching the reduced-motion UX pattern. Confirmed live on real iOS Safari: blocked-state Play button, real audio, slow replay, all working. Submit button renamed ("Explain this letter") to stop overselling audio it doesn't directly control. 81 tests green. | Propose P5 |
