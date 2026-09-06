@@ -6,21 +6,28 @@ Durable project state. Update at the end of every session. The next session star
 
 ## Current status
 **Phase:** P10 CLOSED. Post-P10 visual polish pass shipped and **approved by the user —
-this is the final UI state.** Nothing further on the UI unless P11 recording exposes a
-real problem. **P11 in progress: the DEV post is written and complete except the demo
-video embed** (`docs/DEV-POST-DRAFT.md`, ~1,960 prose words, all three screenshots and
-both citations in and verified 200).
-**Next action:** **the demo video — the user is recording it themselves**, with fresh
-Gemini/ElevenLabs keys. **Both fresh keys were smoke-tested 2026-09-06 23:1x and both
-work** (Gemini 200, 2 claims extracted; ElevenLabs 200, audio/mpeg). The new Gemini key
-is 53 chars and does *not* start with `AIza` — that shape is unusual but valid, so do
-not treat it as broken. Dev server was restarted so it picked up the new values.
-For the **Audit Panel drop beat**, use the headed recording harness (`record-drop.cjs`,
-session files dir — see "Recording the drop on camera" below): a real visible Chrome
-window with `/api/explain` stubbed to the corrupted-claim result, **zero Gemini calls**,
-audio still live. When the video exists, paste its embed into the one remaining
-`[DEMO VIDEO EMBED PLACEHOLDER]` in `docs/DEV-POST-DRAFT.md` — that is the last thing
-standing between here and publishing. **README is DONE** (5776ef3).
+this is the final UI state.** **P11 BUILD COMPLETE:** the DEV post is written, trimmed,
+screenshotted, cited and the demo video is recorded and embedded
+(`docs/DEV-POST-DRAFT.md`, ~1,960 prose words, three screenshots, two verified
+citations, video embed — **no placeholders left**). README done, repo public, full-
+history secret audit clean, suite green at 121 tests / 12 files. Nothing is left to
+build. The remaining act is publishing the post to DEV.
+**Next action:** **PUBLISH.** `docs/DEV-POST-DRAFT.md` is **complete** — the demo video
+is recorded and embedded (`{% youtube n2HSsBXcBNs %}`, "The Letter — Demo (DEV Weekend
+Challenge: Generosity Edition)", verified public via oEmbed 2026-09-07 01:1x). **No
+placeholders remain in the post.** Every pre-publish checklist item in
+`docs/SUBMISSION-PLAN.md` is ticked. The only thing left is pasting the post into DEV
+and hitting publish, then adding the canonical DEV URL wherever it is wanted.
+Both fresh keys were smoke-tested and work (Gemini 200; ElevenLabs 200, audio/mpeg).
+The Gemini key is 53 chars and does *not* start with `AIza` — unusual but valid, do not
+treat it as broken. The dev server was stopped after recording finished.
+For any **retake** of the Audit Panel drop beat, use the headed harness
+(`record-drop.cjs`, session files dir — see "Recording the drop on camera" below): a
+real visible Chrome window with `/api/explain` stubbed, **zero Gemini calls**, audio
+still live. **README is DONE** (5776ef3).
+**Deadline check:** 2026-09-07 06:59 UTC. Everything is committed and pushed well
+inside the window; if any commit lands after it, fill the README's post-deadline
+placeholder.
 **Pre-publish checklist:** all items verified 2026-09-06 23:10 except the video and the
 post-deadline-commits line (N/A so far) — see `docs/SUBMISSION-PLAN.md`. Suite green at
 121 tests / 12 files; live URL and repo both 200 and the repo is public.

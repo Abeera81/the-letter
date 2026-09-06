@@ -32,8 +32,8 @@ So: **the money is already appropriated. Generosity already happened. It stops a
 **Live:** https://the-letter-one.vercel.app/
 **Repo:** https://github.com/Abeera81/the-letter
 
-`[DEMO VIDEO EMBED PLACEHOLDER — 75 seconds, no voiceover]`
-*Paste → hear it in Urdu → tap a sentence to see where it came from → what the letter doesn't say → slow replay → one claim the gate threw away → the printable card.*
+{% youtube n2HSsBXcBNs %}
+*75 seconds, no voiceover. Paste → hear it in Urdu → tap a sentence to see where it came from → what the letter doesn't say → slow replay → one claim the gate threw away → the printable card.*
 
 ![Two-column results view. A claim reading "Benefits are scheduled to terminate effective September 30, 2026" is selected and filled teal on the left; on the right, the matching sentence in the original letter is highlighted in the same teal](https://raw.githubusercontent.com/Abeera81/the-letter/main/docs/images/02-results-highlight.png)
 *Tap any fact and the exact words it came from light up in your own letter. This is a real live run on the example letter: checked 6 claims, kept 6.*

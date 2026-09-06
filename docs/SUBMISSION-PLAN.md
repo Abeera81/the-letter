@@ -121,6 +121,7 @@ Verified 2026-09-06 23:10 PKT.
 - [ ] Any post-deadline commits noted in the README — N/A so far; placeholder is in the README if one lands after 06:59 UTC
 - [x] Post is in English
 - [x] Read it aloud once — cut every sentence that doesn't earn its place
+- [x] Demo video recorded and embedded — `{% youtube n2HSsBXcBNs %}`, verified public via oEmbed
 
 Still open (owner: Abeera):
-- [ ] Record the demo video and replace `[DEMO VIDEO EMBED PLACEHOLDER]` in `docs/DEV-POST-DRAFT.md`
+- [ ] Publish the post to DEV
