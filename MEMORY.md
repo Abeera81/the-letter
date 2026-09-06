@@ -11,10 +11,13 @@ error messages — and confirmed all good; I did the machine half — logging/pe
 footer, no-advice language, server-side keys, build/lint/test — and found ONE real gap,
 basic per-IP rate limiting, which is now built, tested, and live-verified; see RESOLVED
 entry below).
-**Next action:** build the deliberately-corrupted demo fixture so the Audit Panel can
-fire live and real for the demo video (user's explicit precondition before scripting
-P11's video), then propose the full P11 plan.
+**Next action:** demo-ready Audit Panel drop confirmed real (see RESOLVED entry below).
+Propose the full P11 plan next.
 **Deadline:** 2026-09-07 06:59 UTC (11:59 AM PKT)
+**Gemini quota note:** hit the 20/day project cap again today (2026-09-06) partway
+through demo-fixture testing — the shared key is used by both local dev and the
+Vercel deployment, and the user's own P10 manual testing likely used some of today's
+budget too. Resets at midnight Pacific.
 **Standing instruction (2026-09-06): push to origin after every commit, not just when
 asked.** The user pushed P8 manually after finding it wasn't on GitHub and said not to
 let this happen again — treat "commit" and "push" as one action from here on.
@@ -652,6 +655,52 @@ validation, or (critically) the paid Gemini/ElevenLabs calls.
 
 121 tests, build, lint, `tsc --noEmit` all clean.
 
+## RESOLVED: demo-ready Audit Panel drop, real gate output not fabricated data
+Beat 6 of the demo video (SUBMISSION-PLAN.md) needs "one claim the gate dropped, and
+why" — live and real. Real problem discovered honestly along the way: **4 live
+fixture runs this session (1, 2, 3, 4) all came back with zero dropped claims.**
+`gemini-3.5-flash` has been consistently reliable at verbatim quoting, which is good
+for the product but meant there was no natural footage of the gate firing yet.
+
+Tried option 1 first, as agreed with the user: a fixture (`STATE BENEFITS OFFICE /
+DECISION NOTICE`, an isolated one-word "DENIED" outcome with no surrounding context to
+borrow a longer quote from) designed to force short, deterministically-droppable
+evidence via `MIN_EVIDENCE_CHARS` rather than hoping for a model mistake. Never got a
+clean read on it — hit the Gemini free-tier's 20/day cap mid-attempt (see the quota
+note in Current status above). Per the user's own pre-agreed fallback, stopped
+guessing rather than burn more calls chasing it once quota was gone anyway.
+
+**Fell back to the P2 corrupted-claim approach, exactly as the user specified: real,
+live gate behavior on genuinely altered evidence, not staged or mocked.** The exact
+"ninety days → thirty days" case is already a permanent regression test in
+`spanGate.test.ts` (from P2). Built a realistic full 6-claim set — 5 claims using
+genuine verbatim substrings of `fixtures/01-snap-closure.txt`, plus that one claim
+with its evidence deliberately corrupted the same way — and ran it through the actual,
+unmodified `runSpanGate()` function (not a mock, not the browser — a real Node/vitest
+execution of the shipped gate code). Real result, captured directly from the function's
+return value:
+
+```
+VERIFIED: ["c1","c2","c3","c4","c5"]
+DROPPED: [{ claim: { id: "c6", ... }, reason: "numeric_mismatch" }]
+```
+
+Then replayed this exact real output (not fabricated numbers) through the actual
+running browser UI via a stubbed `/api/explain` — the same technique used throughout
+this session for zero-cost UI verification — confirming the Audit Panel renders it
+correctly: the corrupted claim shown with "Dropped because a number or date in the
+quote did not match what the letter actually says," the other 5 genuine claims listed
+normally. Screenshotted.
+
+**Saved as a reproducible recipe** at
+`.../scratchpad/demo-audit-panel-recipe.md` (the exact browser-console stub script) so
+this can be replayed on demand when actually recording the demo video, without
+depending on quota or model luck for retakes. Recommend disclosing this plainly in the
+DEV post — the corruption is intentional (demonstrating the gate), the same honest
+framing already used for fixture 4 (nobody needs the model to actually fail live on
+camera to prove the safety mechanism works; P2's own regression tests are the proof,
+and this replay is just making that proof visible in the UI).
+
 ## INCIDENT: ran the Gemini free-tier quota dry mid-P3
 `gemini-3.5-flash` free tier is **20 requests/day per project**, resetting at midnight
 Pacific (confirmed against ai.google.dev/gemini-api/docs/rate-limits, not assumed). A new
@@ -687,3 +736,4 @@ on the one or two things that genuinely need a fresh one.
 | 2026-09-06 | P7 CLOSED / P8 (code + live) | P7 closed (user moved to proposing P8 after round 4). Built printCard.ts (pure bucketing function, fail-honest absent-fallback per section), PrintCard.tsx (hidden print:block, everything else print:hidden), a "Print action card" button. User's explicit call: always English regardless of targetLang, since the card is for a caseworker at a counter, not the person themselves — required zero extra translation logic since extraction's own fields are already English. Verified with both fixtures as asked: fixture 2 reused the real JSON captured live at P6 (zero new calls) as the fallback-path proof in the test suite; fixture 1 needed one fresh live call (no prior capture existed in this shape) — confirmed all three happy-path sections plus the Where-to-go absent-fallback, real data, screenshotted. 6 new tests, 117 total green, build/lint/tsc clean. | Wait for the user's own look at the printed output, then close P8 |
 | 2026-09-06 | P8 CLOSED / P9 (hostile test + audit panel) | User confirmed the print preview live: one clean page, readable in black and white, sensible content. P8 closed. New standing rule: push after every commit — user found P8 wasn't on GitHub and pushed it manually. P9: spent one live call on fixture 4 (the hostile-injection letter) per the user's explicit request for a direct yes/no on extraction-level success, not just "the gate held." Real result: injection did NOT succeed — the model reported the injected SYSTEM NOTE as a fact about the letter's contents ("the letter contains a text block telling an AI to say X"), never adopted it as true, and the final script never claims approval/no-deadline/no-action. Reported this to the user with exact quotes before touching anything else, as instructed. Built AuditPanel.tsx (F11) after the clean result: plain-English dropped-claim reasons via an exhaustive DropReason map, renders nothing when nothing was dropped. Self-verified with a stubbed nonzero-drop response (zero live calls) since no real fixture run this session had produced one. 117 tests still green, build/lint/tsc clean. | Report the audit panel and the injection-test result, get sign-off to close P9 |
 | 2026-09-06 | P9 CLOSED / P10 CLOSED | User did the human accessibility checklist (keyboard-only, 200% zoom, narrow width, error messages) and confirmed all good. I ran the machine half (logging/persistence, footer, no-advice language, server-side keys, rate limiting, build/lint/test) and found one real gap: basic per-IP rate limiting from Tech Design §9 had never been built, and the app was already live and unprotected. Built src/lib/rateLimit.ts (fixed-window, 5 req/60s per IP), wired into both routes as the first check before body parsing. Verified three ways: unit tests on the limiter itself, a new route-level test proving the 6th request from one IP gets a real 429, and a live curl run against the actual dev server (400×5 then 429, zero Gemini calls spent since the limiter fires before validation) confirming a second IP is unaffected. Fixed a latent bug in speak/route.test.ts where all tests implicitly shared one IP. 121 tests, build/lint/tsc clean, pushed immediately per the standing rule. | Build the deliberately-corrupted demo fixture for the Audit Panel, then propose P11 |
+| 2026-09-06 | Demo prep: Audit Panel drop | Tried the deterministic short-evidence fixture (option 1) first as agreed; hit the Gemini 20/day quota wall mid-attempt before getting a clean read. Fell back to the pre-agreed plan: replayed the real P2 "ninety→thirty" regression case as part of a realistic 6-claim set, run through the actual unmodified runSpanGate() function (real Node execution, not mocked) — confirmed 5 kept, 1 dropped with numeric_mismatch. Replayed that exact real output through the live browser UI and confirmed the Audit Panel renders it correctly; screenshotted. Saved a reproducible browser-console recipe in scratchpad for the actual video recording. No code changes (verification only). | Propose the full P11 plan |
