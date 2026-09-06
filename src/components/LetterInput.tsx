@@ -187,102 +187,109 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
             What your letter says
           </h2>
 
-          {/* A new key on every result: a fresh result means fresh audio, not
-              the previous letter's clip continuing to play. */}
-          <div className="mt-4">
-            <AudioControls key={result.script} script={result.script} />
+          {/* Two zones, always both visible on desktop; stacked on mobile,
+              where SourceHighlight's own auto-scroll takes over instead. */}
+          <div className="mt-4 md:grid md:grid-cols-2 md:items-start md:gap-8">
+            <div className="md:sticky md:top-6 md:max-h-[calc(100vh-3rem)] md:overflow-y-auto md:pr-2">
+              {/* A new key on every result: a fresh result means fresh audio,
+                  not the previous letter's clip continuing to play. */}
+              <AudioControls key={result.script} script={result.script} />
+
+              {/* The script is the product. Everything below it is the
+                  evidence. RTL applies only to this transcript, not the
+                  surrounding page — the pasted source letter and the rest of
+                  the UI stay LTR. */}
+              <div
+                dir={RTL_LANGUAGES.has(result.meta.targetLang) ? "rtl" : "ltr"}
+                lang={result.meta.targetLang}
+                className="mt-6 rounded-md border-2 border-accent bg-paper-raised p-5 text-xl leading-relaxed"
+              >
+                {result.script.split(/\n/).map((line, i) =>
+                  line.trim() === "" ? null : (
+                    <p key={i} className="mt-4 first:mt-0">
+                      {line}
+                    </p>
+                  ),
+                )}
+              </div>
+
+              <AbsentPanel
+                absent={result.absent}
+                absentLines={result.absentLines}
+                targetLang={result.meta.targetLang}
+              />
+
+              <h3 className="mt-10 text-lg font-semibold">Where this came from</h3>
+              <p className="mt-2 text-ink-soft">
+                Every sentence above was built only from claims traced back to the exact
+                words of your letter.
+              </p>
+
+              <p className="mt-4 rounded-md border-2 border-rule bg-paper-raised p-4">
+                Checked {result.meta.extractedCount}{" "}
+                {result.meta.extractedCount === 1 ? "claim" : "claims"}. Kept{" "}
+                {result.verified.length}.{" "}
+                {result.meta.droppedCount === 0
+                  ? "Nothing was dropped."
+                  : `Dropped ${result.meta.droppedCount} that could not be traced to the letter.`}
+              </p>
+
+              {/* Tap a claim, its exact words light up beside/below it in the
+                  original letter. These labels stay in English — they name
+                  the exact words of the original letter, not the translated
+                  transcript above, even when Urdu or Spanish is selected. */}
+              <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Verified claims">
+                {result.verified.map((claim) => {
+                  const selected = selectedClaimId === claim.id;
+                  const locatable = claim.sourceStart !== null && claim.sourceEnd !== null;
+                  return (
+                    <button
+                      key={claim.id}
+                      type="button"
+                      aria-pressed={selected}
+                      disabled={!locatable}
+                      onClick={() => setSelectedClaimId(selected ? null : claim.id)}
+                      className="min-h-[3rem] rounded-md border-2 border-rule bg-paper-raised px-4 py-2 text-left text-base disabled:cursor-not-allowed disabled:opacity-50 aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-white"
+                      title={locatable ? undefined : "The exact location of this claim in the letter could not be pinpointed."}
+                    >
+                      {claim.statement}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <pre className="mt-6 overflow-x-auto rounded-md border-2 border-rule bg-paper-raised p-4 text-base">
+                {JSON.stringify(
+                  {
+                    documentType: result.documentType,
+                    verified: result.verified,
+                    dropped: result.dropped,
+                    absent: result.absent,
+                    absentLines: result.absentLines,
+                  },
+                  null,
+                  2,
+                )}
+              </pre>
+            </div>
+
+            <div className="mt-10 md:sticky md:top-6 md:mt-0 md:max-h-[calc(100vh-3rem)] md:overflow-y-auto md:pl-2">
+              <h3 className="text-lg font-semibold">Original letter</h3>
+              <SourceHighlight
+                sourceText={submittedText}
+                span={
+                  selectedClaimId
+                    ? (() => {
+                        const claim = result.verified.find((c) => c.id === selectedClaimId);
+                        return claim && claim.sourceStart !== null && claim.sourceEnd !== null
+                          ? { start: claim.sourceStart, end: claim.sourceEnd }
+                          : null;
+                      })()
+                    : null
+                }
+              />
+            </div>
           </div>
-
-          {/* The script is the product. Everything below it is the evidence.
-              RTL applies only to this transcript, not the surrounding page —
-              the pasted source letter and the rest of the UI stay LTR. */}
-          <div
-            dir={RTL_LANGUAGES.has(result.meta.targetLang) ? "rtl" : "ltr"}
-            lang={result.meta.targetLang}
-            className="mt-6 rounded-md border-2 border-accent bg-paper-raised p-5 text-xl leading-relaxed"
-          >
-            {result.script.split(/\n/).map((line, i) =>
-              line.trim() === "" ? null : (
-                <p key={i} className="mt-4 first:mt-0">
-                  {line}
-                </p>
-              ),
-            )}
-          </div>
-
-          <AbsentPanel
-            absent={result.absent}
-            absentLines={result.absentLines}
-            targetLang={result.meta.targetLang}
-          />
-
-          <h3 className="mt-10 text-lg font-semibold">Where this came from</h3>
-          <p className="mt-2 text-ink-soft">
-            Every sentence above was built only from claims traced back to the exact
-            words of your letter.
-          </p>
-
-          <p className="mt-4 rounded-md border-2 border-rule bg-paper-raised p-4">
-            Checked {result.meta.extractedCount}{" "}
-            {result.meta.extractedCount === 1 ? "claim" : "claims"}. Kept{" "}
-            {result.verified.length}.{" "}
-            {result.meta.droppedCount === 0
-              ? "Nothing was dropped."
-              : `Dropped ${result.meta.droppedCount} that could not be traced to the letter.`}
-          </p>
-
-          {/* Tap a claim, its exact words light up below in the original
-              letter. These labels stay in English — they name the exact
-              words of the original letter, not the translated transcript
-              above, even when Urdu or Spanish is selected. */}
-          <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Verified claims">
-            {result.verified.map((claim) => {
-              const selected = selectedClaimId === claim.id;
-              const locatable = claim.sourceStart !== null && claim.sourceEnd !== null;
-              return (
-                <button
-                  key={claim.id}
-                  type="button"
-                  aria-pressed={selected}
-                  disabled={!locatable}
-                  onClick={() => setSelectedClaimId(selected ? null : claim.id)}
-                  className="min-h-[3rem] rounded-md border-2 border-rule bg-paper-raised px-4 py-2 text-left text-base disabled:cursor-not-allowed disabled:opacity-50 aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-white"
-                  title={locatable ? undefined : "The exact location of this claim in the letter could not be pinpointed."}
-                >
-                  {claim.statement}
-                </button>
-              );
-            })}
-          </div>
-
-          <h4 className="mt-6 text-base font-semibold">Original letter</h4>
-          <SourceHighlight
-            sourceText={submittedText}
-            span={
-              selectedClaimId
-                ? (() => {
-                    const claim = result.verified.find((c) => c.id === selectedClaimId);
-                    return claim && claim.sourceStart !== null && claim.sourceEnd !== null
-                      ? { start: claim.sourceStart, end: claim.sourceEnd }
-                      : null;
-                  })()
-                : null
-            }
-          />
-
-          <pre className="mt-4 overflow-x-auto rounded-md border-2 border-rule bg-paper-raised p-4 text-base">
-            {JSON.stringify(
-              {
-                documentType: result.documentType,
-                verified: result.verified,
-                dropped: result.dropped,
-                absent: result.absent,
-                absentLines: result.absentLines,
-              },
-              null,
-              2,
-            )}
-          </pre>
         </section>
       )}
     </div>

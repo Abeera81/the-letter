@@ -373,6 +373,67 @@ the highlight and drops `aria-pressed` entirely. `npm run build`, lint, and `tsc
 **Not yet done:** the user has not looked at the interaction with their own eyes —
 they explicitly want to before this closes, same as every other UI-facing phase.
 
+## P7 round 2: two-zone layout, real auto-scroll bug, and the disabled-claim question
+First-look feedback from the user, after trying it live: (1) tapping a claim worked but
+the highlight required manual scrolling to see — the layout had never caught up to Tech
+Design §7's "two zones, always both visible on desktop, stacked on mobile" spec, which
+predates P7 entirely (the whole app was single-column until now); (2) they saw no
+disabled/greyed-out claim in fixture 1 and asked whether that's because all 6 of its
+claims are genuinely locatable, or because the disabled path silently isn't firing —
+correctly refusing to just take my word for it or go hunting for a real counterexample.
+
+**Layout:** `LetterInput.tsx`'s results section is now a real two-column CSS grid at
+`md:` — explanation zone (audio, script, AbsentPanel, claims list, debug JSON) on the
+left, "Original letter" (`SourceHighlight`) on the right — each column
+`md:sticky md:top-6 md:max-h-[calc(100vh-3rem)] md:overflow-y-auto` so a long letter or
+script scrolls within its own zone instead of pushing the other out of view. Below
+`md`, the grid collapses to the prior single-column stack.
+
+**A real bug, found and fixed via direct reproduction, not guesswork:** added a
+`scrollIntoView`-on-select effect to `SourceHighlight.tsx`, tried `behavior: "smooth"`
+first, and it silently did nothing on the desktop column — `scrollTop` stayed at 0.
+Isolated the cause by monkey-patching `Element.prototype.scrollTo` in a live browser
+session to log real calls: the effect *was* firing, with the right target offset, on
+the right element — `behavior: "smooth"` alone was the failure. Confirmed directly:
+calling `scrollTo({top: X, behavior: "auto"})` on the exact same sticky+overflow-auto
+column moved it; the identical call with `behavior: "smooth"` left `scrollTop` at 0,
+reproducibly. This is a genuine Chromium quirk with smooth-scrolling a
+`position: sticky` element's own `overflow-y: auto` scroll box, not a coding mistake —
+native `scrollIntoView`'s ancestor-walk has the same problem for the same reason.
+**Fix:** instant scroll (`behavior: "auto"`) everywhere in this feature, computed by
+hand for the sticky-column case (`nearestScrollableAncestor()` walks up from the
+`<mark>` to find a real internally-scrolling ancestor and calls `scrollTo` on it
+directly) and falling back to `mark.scrollIntoView` for the plain page-scroll case
+(mobile, no such ancestor). Instant rather than smooth also fits this app's existing
+rule that motion should only ever serve a purpose, so this isn't a compromise.
+
+**Verified, not asserted:** since real narrow-viewport emulation wasn't available in
+the browser-automation tool used, the mobile fallback path was verified by forcing the
+column's actual DOM node into the mobile CSS shape (`position: static`,
+`overflow-y: visible`, no max-height — i.e. exactly what `md:` classes stop applying
+below the breakpoint) and re-triggering a claim tap: confirmed the *real* code path
+(`nearestScrollableAncestor` returning `null`, falling through to `scrollIntoView`)
+moved `window.scrollY` from 0 to 1438 and landed the highlight centered in the
+viewport. The desktop sticky-column path was verified the direct way: clicking a claim
+whose evidence sits near the end of the letter moved the column's own `scrollTop` from
+0 to the correct offset while the outer page and the other column stayed put.
+
+**The disabled-claim question, answered directly:** fixture 1's Span Gate run has
+always been 6/6 claims verified by exact normalized substring match (see the P2 log
+entry) — `locateSpan`'s fast path (`indexOf`) resolves all of them cleanly, so there is
+genuinely nothing to disable in that fixture. That is a fact about fixture 1, not a
+dead code path. The disabled path itself was never asserted only in the abstract: the
+same stubbed-response harness used throughout P7's verification always includes one
+claim with fabricated, not-in-the-letter evidence specifically to exercise it, and
+across every re-run in this round it kept rendering correctly — disabled, with its
+reason as a visible tooltip, producing no `<mark>`. `locateSpan.test.ts` also asserts
+the underlying "not found → null" behavior directly, independent of any UI. Per the
+user's own instruction, this synthetic case is the proof offered — not a request that
+they go hunting fixture 1 for a real one that doesn't exist.
+
+`npm run build`, lint, and `tsc --noEmit` all clean after these fixes. 111 tests still
+green (no test changes needed — this round was layout/interaction, not logic).
+
 ## INCIDENT: ran the Gemini free-tier quota dry mid-P3
 `gemini-3.5-flash` free tier is **20 requests/day per project**, resetting at midnight
 Pacific (confirmed against ai.google.dev/gemini-api/docs/rate-limits, not assumed). A new
@@ -402,3 +463,4 @@ on the one or two things that genuinely need a fresh one.
 | 2026-09-06 | P6 (code + live) | AbsentPanel.tsx built. render.ts's call #2 now returns structured `{script, absentLines}` via JSON schema, with a length-parity fail-closed check beyond Zod validation. classifySdkError extracted to a shared module. Closed the long-open P3 explanation-field item live, on the shipped model. RTL/translation confirmed on the real rendered DOM by replaying a captured live response through a stubbed fetch, not a second live call. 103 tests green, 12 new covering the fail-closed path specifically. | Wait for user review, then close P6 |
 | 2026-09-06 | P6 CLOSED | User rejected pasted-text evidence as insufficient and independently confirmed the Urdu AbsentPanel live in the browser against a running dev server: renders correctly, all three lines accurate to fixture 2's actual missing fields. Real quality gate, same standard as P5. ElevenLabs quota hit again during the check — expected/known limit, not a bug, no action taken; user will bring a fresh key for the demo recording. | P7 |
 | 2026-09-06 | P7 (code) | locateSpan.ts (fail-closed evidence→raw-offset finder, kept separate from spanGate.ts on purpose), LocatedClaim type, route.ts wiring, SourceHighlight.tsx, tappable verified-claims list in LetterInput.tsx. Declined mapping rendered prose sentences back to claims (unverified heuristic, same risk class as the P6 shortcut already declined) in favor of tapping the real verified claims directly — user's explicit call. 8 new locateSpan tests, 111 total green. Self-verified the full tap/highlight/toggle interaction in a real browser via a stubbed /api/explain response built from real fixture-1 substrings (zero live Gemini calls), including the disabled/unlocatable-claim fail-closed case. Added the English-label limitation to SUBMISSION-PLAN.md; also corrected a now-stale line there claiming Urdu was unaudited (it was reviewed and signed off at P5). | Wait for the user's own look at the interaction, then close P7 |
+| 2026-09-06 | P7 round 2 | User's first-look feedback: highlight required manual scrolling (layout never caught up to Tech Design's two-zone spec), and asked whether the disabled-claim path had genuinely fired or just never been tested against a real case. Built the two-column sticky/scrollable layout per §7. Found and fixed a real Chromium bug via direct reproduction: smooth-scrolling a position:sticky element's own overflow box silently no-ops; switched to instant scroll everywhere in this feature. Verified the mobile fallback path by forcing the real DOM into the mobile CSS shape rather than asserting it untested. Answered the disabled-claim question directly: fixture 1 is genuinely 6/6 locatable (a fact about that fixture, not a dead code path), and pointed to the existing synthetic unlocatable-claim proof already built into the verification harness, per the user's own instruction not to go hunting fixture 1 for a case that doesn't exist. 111 tests still green, build/lint/tsc clean. | Wait for the user's own look, then close P7 |
