@@ -6,3 +6,13 @@ node_modules
 *.tsbuildinfo
 next-env.d.ts
 *.tmp-*.json
+
+# Working docs kept out of the public repo: planning, internal notes and the
+# submission draft. They stay on disk locally; only shipped code, the README
+# and the images the published post links to are tracked.
+AGENTS.md
+MEMORY.md
+REVIEW-CHECKLIST.md
+agent_docs/
+docs/*.md
+!docs/images/

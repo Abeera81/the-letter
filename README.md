@@ -39,7 +39,7 @@ verified by deterministic TypeScript, not by a model promising it was faithful.
 4. **Speak.** ElevenLabs reads it aloud, with 0.7× slow replay one tap away.
 
 The gate does two non-obvious things, both of which exist because the naive version was
-wrong (see [the write-up](docs/DEV-POST-DRAFT.md)):
+wrong:
 
 - It matches the evidence against the best **contiguous** run of source words, position by
   position, not against the whole word set. A set comparison has no concept of *where* a
