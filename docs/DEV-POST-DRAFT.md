@@ -18,10 +18,10 @@ Somebody is standing in a kitchen holding that. They don't know whether their fo
 
 What it will never say is that you qualify for anything, or that you should appeal, or that you shouldn't. And it **fails closed**: if verification leaves nothing behind you get a clear error, never a half-explained benefits letter.
 
-`[SCREENSHOT PLACEHOLDER — the input screen with the trust panel]`
+![The Letter's input screen: a large paste box, English/Urdu/Spanish language pills, and a panel listing three promises about how the letter is handled](https://raw.githubusercontent.com/Abeera81/the-letter/main/docs/images/01-input-screen.png)
 *The whole product before you paste anything: one box, three promises, and no account to make.*
 
-Aid doesn't usually fail at eligibility. It fails here. In 2023, **69.1 million people were eligible for SNAP and 29.4 million of them didn't receive it**, and the National Council on Aging puts total unclaimed US benefits at **$58 billion a year**. Researchers keep landing on the same cause: informational barriers. `[LINK PLACEHOLDER — Urban Institute / NCOA sources]`
+Aid doesn't usually fail at eligibility. It fails here. In 2023, [69.1 million people were eligible for SNAP and 29.4 million of them didn't receive it](https://homenewshere.com/national/news/article_2534f43a-376f-5640-9928-b12e586e04d0.html) — the Urban Institute's State of the Safety Net project calls that the *participation gap*. The National Council on Aging puts what [older adults alone leave unclaimed at $58 billion a year](https://www.ncoa.org/article/the-58-billion-benefits-gap-affecting-older-adults/). Researchers keep landing on the same cause: informational barriers.
 
 So: **the money is already appropriated. Generosity already happened. It stops at a sheet of paper.** Every other project this weekend asks *how do I give?* This one asks **why doesn't the giving land?** The user here is not a donor — no donate button, no charity directory, no giving tracker. The user is a person holding an envelope they're afraid of.
 
@@ -29,11 +29,14 @@ So: **the money is already appropriated. Generosity already happened. It stops a
 
 ## Demo
 
-**Live:** `[LIVE URL PLACEHOLDER]`
-**Repo:** `[REPO URL PLACEHOLDER]`
+**Live:** https://the-letter-one.vercel.app/
+**Repo:** https://github.com/Abeera81/the-letter
 
 `[DEMO VIDEO EMBED PLACEHOLDER — 75 seconds, no voiceover]`
 *Paste → hear it in Urdu → tap a sentence to see where it came from → what the letter doesn't say → slow replay → one claim the gate threw away → the printable card.*
+
+![Two-column results view. A claim reading "Benefits are scheduled to terminate effective September 30, 2026" is selected and filled teal on the left; on the right, the matching sentence in the original letter is highlighted in the same teal](https://raw.githubusercontent.com/Abeera81/the-letter/main/docs/images/02-results-highlight.png)
+*Tap any fact and the exact words it came from light up in your own letter. This is a real live run on the example letter: checked 6 claims, kept 6.*
 
 ---
 
@@ -118,6 +121,11 @@ if (match.mismatchedNumeric) {
 
 Fabricated-approval fell from 0.636 to **0.182**. "ninety → thirty" fell from 1.000 to 0.952 — still above the ratio threshold, which is precisely why the numeric guard is not a refinement. Both cases are permanent regression tests now.
 
+Here is that exact case in the shipped UI, and you can see both halves of it at once — the real claim saying *ninety days* kept above, the corrupted one saying *thirty days* thrown out below, with the reason in plain language:
+
+![The results panel reading "Checked 7 claims, kept 6. Dropped 1 that could not be traced to the letter." Below the kept claims, a "What could not be verified" section shows the dropped claim about a fair hearing within thirty days, annotated "Dropped because a number or date in the quote did not match what the letter actually says."](https://raw.githubusercontent.com/Abeera81/the-letter/main/docs/images/03-audit-panel-drop.png)
+*Disclosed honestly: the model didn't produce that bad claim — I corrupted it deliberately, because my real fixtures never fail. The drop itself is genuine, decided by the unmodified `runSpanGate()` on a real extraction. More on this in Limitations.*
+
 ---
 
 ## The hostile letter, and what the test actually proved
@@ -186,7 +194,7 @@ A test asserts the model is never even *asked* for this line, in any language. T
 
 ## Code
 
-`[REPO EMBED PLACEHOLDER — {% embed <repo url> %}]`
+{% embed https://github.com/Abeera81/the-letter %}
 
 Repository created **5 September 2026**, inside the challenge window. Next 16, React 19, TypeScript, Tailwind 4, Zod 4. Nothing you paste is stored, logged or written to disk — no database, no auth, no persistence, which is also why the app has no navigation at all. **121 tests across 11 files.** No borrowed open-source code beyond the framework dependencies.
 
@@ -202,4 +210,4 @@ Worth opening: `src/lib/spanGate.ts` (the gate, ~140 lines, no model in it), `sr
 
 ---
 
-*The Letter · [LIVE URL PLACEHOLDER] · Built for the DEV Weekend Challenge: Generosity Edition.*
+*The Letter · https://the-letter-one.vercel.app/ · Built for the DEV Weekend Challenge: Generosity Edition.*
