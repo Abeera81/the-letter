@@ -5,12 +5,14 @@ Durable project state. Update at the end of every session. The next session star
 ---
 
 ## Current status
-**Phase:** P4 — voice chosen (Eric) and wired in. One live end-to-end check pending
-this session, then the phone test is the user's to run.
-**Next action:** run the single budgeted end-to-end /api/explain + /api/speak check on
-fixture 1, confirm real audio comes back, then hand the phone test to the user. After
-that: the P3 fixture-2 same-model confirmation is still open (see below), first thing
-whenever a fresh Gemini quota day is available.
+**Phase:** P4 — deployed, working on web. iPhone attempt hit the Gemini daily quota
+before it could complete, so real-device audio (the actual P4 gate) is still
+unconfirmed. See "RESOLVED: production outage" below.
+**Next action:** user is adding a fresh Gemini key for headroom during the demo
+recording. Once that's in on Vercel, do the real iOS Safari audio test — auto-play
+without a second tap is the single likeliest live-demo failure (Tech Design §6/§11) and
+still has zero real-device confirmations. After that: the P3 fixture-2 same-model
+confirmation is still open (see below).
 **Deadline:** 2026-09-07 06:59 UTC (11:59 AM PKT)
 
 ## Decisions locked (do not relitigate)
@@ -139,6 +141,32 @@ fresh allotment rather than have this session guess with what little remained. N
 issue with the code — `src/lib/elevenlabs.ts` and `/api/speak` were already built,
 unit-tested (mocked, zero cost), and live-verified to fail closed cleanly with no voice
 configured, before the account was swapped.
+
+## RESOLVED: production outage on first deploy, and what it taught
+First attempt on the deployed Vercel URL failed on both a laptop and an iPhone with a
+generic "did not answer" message — no clue which of several possible causes it was,
+because this app deliberately never logs an error's contents. Root cause was never
+directly observed (never confirmed which of: a mismatched env-var value from manually
+filling in the three previously-empty Vercel slots, or straightforward quota exhaustion
+across a shared Gemini key already stressed by a full session of live testing). Didn't
+matter which — fixed the actual gap instead of chasing the specific cause: Gemini SDK
+errors aren't `instanceof`-checkable (the classes aren't exported) but every one carries
+a numeric `.status`, confirmed by reading the installed package's compiled source.
+Added `classifyExtractionError()` (10 unit tests, zero API calls) so `auth_failed` and
+`quota_exceeded` are now their own codes with their own honest messages, instead of both
+collapsing into the same "did not answer."
+
+**Confirmed working after the fix, live, in production:** a web attempt succeeded fully.
+An iPhone attempt returned the new, correctly-labelled "reached its limit for now" —
+proof the classifier works, and proof the pipeline itself was never broken, only the
+error reporting was blind. User is adding a fresh Gemini key (mirroring the ElevenLabs
+account swap earlier in P4) for headroom during the demo recording, rather than spend
+more of the current key's daily quota chasing this further.
+
+**Still not confirmed:** real audio playing on iOS Safari specifically. The iPhone
+attempt never got far enough to test autoplay — it hit the quota wall on the Gemini
+call, before /api/speak was ever reached. This is the one gate P4 has not actually
+closed yet.
 
 ## OPEN: fixture-2 fix needs same-model live confirmation
 Do this FIRST next session, before anything else, budget permitting (see the API budget
