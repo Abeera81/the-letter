@@ -5,16 +5,12 @@ Durable project state. Update at the end of every session. The next session star
 ---
 
 ## Current status
-**Phase:** P9 CLOSED (hostile-fixture test passed live; Audit Panel built). P10 CLOSED
-(user did the human half of the checklist — keyboard-only, 200% zoom, narrow width,
-error messages — and confirmed all good; I did the machine half — logging/persistence,
-footer, no-advice language, server-side keys, build/lint/test — and found ONE real gap,
-basic per-IP rate limiting, which is now built, tested, and live-verified; see RESOLVED
-entry below).
-**Next action:** P11 proposed (see "P11 plan (proposed, awaiting approval)" below) —
-demo video, README expansion, DEV post. Awaiting the user's approval and their choice
-of sequencing (suggested: record video first, then draft the DEV post while they
-record, README last).
+**Phase:** P10 CLOSED, plus a post-P10 visual polish pass (2026-09-06, commit
+396865f) applied from a UI reference image the user supplied. P11 not yet started.
+**Next action:** P11 (see "P11 plan" below) — demo video, README expansion, DEV post.
+Also outstanding: the user's own live look at the polished screen (I had no browser
+screenshot tooling this session, so the visual verification is HTML/CSS-level only —
+see the polish-pass entry below for exactly what was and was not checked).
 **Deadline:** 2026-09-07 06:59 UTC (11:59 AM PKT)
 **Gemini quota note:** hit the 20/day project cap again today (2026-09-06) partway
 through demo-fixture testing — the shared key is used by both local dev and the
@@ -726,6 +722,54 @@ on the one or two things that genuinely need a fresh one.
 _None currently open._ (The two that used to live here — iOS Safari autoplay, Urdu RTL
 at 360px — were both verified live long ago, at P4 and P5 respectively; removed so this
 section doesn't mislead a fresh session into thinking they're still pending.)
+
+## Post-P10 visual polish pass (from the user's UI reference image)
+The user supplied a reference mock and named exactly three things to take from it —
+overall calm/spacious/soft-card direction, the right-side trust panel, and the
+language-pill styling — with an explicit instruction NOT to redesign, since P7 already
+cost four rounds getting the three-zone results structure right. Also explicitly
+excluded, by the user, as scope violations: History (zero persistence), Settings (no
+such page, scope closed), and the mock's "don't have the letter, just describe it"
+chat box (a different product with no Span Gate behind it — unverified output).
+
+**What shipped:**
+- `TrustPanel.tsx` — the reference's three-bullet trust panel, rewritten as real copy
+  about the real architecture. The binding constraint, written into the file's own
+  header comment: every line must be a literal description of shipped code. "Every fact
+  is quoted" is F7's tappable highlighting; "Verified before it's shown" is
+  `spanGate.ts` running before anything reaches the screen or ElevenLabs; the body
+  paragraph states plainly that call #2 never sees the letter. If the pipeline ever
+  stops making one of these true, the panel is wrong and must change with it.
+  Positioned beside the input, not after the result, because the trust decision is made
+  before pasting.
+- Slim wordmark header in `layout.tsx`, no nav (the user chose this over leaving the
+  page starting at the H1). No navigation at all is the honest shape: there is nowhere
+  else to go, and that absence *is* the privacy promise.
+- H1 rewritten to a value proposition ("Turn a letter you dread into words you
+  understand") since the wordmark now carries the product name.
+- Language pills: radio inputs are `sr-only`, **not removed** — it is still a real radio
+  group, so arrow-key navigation and screen-reader state announcement survive. The label
+  carries `has-[:focus-visible]:outline` so keyboard focus never becomes invisible.
+  Verified the generated CSS actually contains the `has(:focus-visible)` rule rather
+  than assuming Tailwind emitted it.
+- **Photo upload is static text, not a button.** The user asked for a "coming soon"
+  placeholder; I rendered it as a non-focusable `<p>` rather than a disabled button, per
+  AGENTS §8 (a dead control costs more than an absent feature) — this way nothing is
+  clickable-looking and keyboard users are never sent to a dead end. OCR stays unbuilt
+  and cut-first per PRD §13.
+- `--shadow-card` token (deliberately faint) plus consistent `rounded-2xl`/`rounded-full`
+  treatment across results components. Every card still carries a real border or tint —
+  shadow is never the only cue that something is a distinct region.
+- The trust panel unmounts once `status === "done"`: the promise has been kept, and the
+  result should hold the page alone. That is also why `LetterInput` takes it as a
+  `trustPanel` ReactNode prop rather than importing it — the results view stays full
+  width and its three-zone layout is untouched.
+
+**Verified:** `tsc --noEmit`, lint, `npm run build`, 121 tests — all clean. Served the
+running dev server and confirmed the new markup and the generated CSS tokens are really
+there. **Not verified this session: any actual visual/screenshot check, 360px width,
+200% zoom, or keyboard walkthrough** — this session had no browser automation tooling
+available (earlier sessions did). Zero Gemini/ElevenLabs calls spent; none were needed.
 
 ## P11 plan (proposed to the user, awaiting approval)
 Per Tech Design §10 and `docs/SUBMISSION-PLAN.md`, three deliverables:
