@@ -5,14 +5,13 @@ Durable project state. Update at the end of every session. The next session star
 ---
 
 ## Current status
-**Phase:** P4 — deployed, working on web. iPhone attempt hit the Gemini daily quota
-before it could complete, so real-device audio (the actual P4 gate) is still
-unconfirmed. See "RESOLVED: production outage" below.
-**Next action:** user is adding a fresh Gemini key for headroom during the demo
-recording. Once that's in on Vercel, do the real iOS Safari audio test — auto-play
-without a second tap is the single likeliest live-demo failure (Tech Design §6/§11) and
-still has zero real-device confirmations. After that: the P3 fixture-2 same-model
-confirmation is still open (see below).
+**Phase:** P4 — deployed, working on web. Fresh Gemini key got the iPhone attempt past
+the quota wall and found a real bug: Safari's autoplay rejection was mislabeled as a
+network failure. Fixed (see "RESOLVED: a real bug" below), not yet phone-verified.
+**Next action:** one more phone check on the deployed site — confirm the "blocked"
+state appears correctly and its Play button works on real iOS Safari. That is the
+literal P4 gate; nothing else in this project depends on a phone test more than this
+one line does. After that: the P3 fixture-2 same-model confirmation is still open.
 **Deadline:** 2026-09-07 06:59 UTC (11:59 AM PKT)
 
 ## Decisions locked (do not relitigate)
@@ -167,6 +166,42 @@ more of the current key's daily quota chasing this further.
 attempt never got far enough to test autoplay — it hit the quota wall on the Gemini
 call, before /api/speak was ever reached. This is the one gate P4 has not actually
 closed yet.
+
+## RESOLVED: a real bug the outage investigation surfaced — Safari autoplay mislabeled
+With a fresh key in, the iPhone attempt got past the quota wall and reached
+`/api/speak` — and hit a second, genuine bug: "Your device could not reach the server."
+The explanation text HAD rendered (confirmed by the user before investigating further),
+which meant `/api/explain` succeeded and the failure was inside `AudioControls.tsx`, not
+a network problem at all.
+
+**Root cause:** `AudioControls.tsx` wrapped `fetch("/api/speak")` AND `await
+audio.play()` in one bare `catch`. `HTMLMediaElement.play()` returns a promise that
+*rejects* when a browser's autoplay policy blocks it, and iOS Safari enforces that far
+more strictly than desktop Chrome — user-gesture "activation" does not survive two
+sequential network round trips (explain, then speak) the way Tech Design §6 assumed
+("playback follows the submit click in the same task chain"). Safari's rejection was
+real; the message describing it as a connectivity problem was not. This is exactly the
+risk this project's own docs named by name as the single likeliest live-demo failure,
+and exactly why it was checked before the demo recording rather than assumed to work
+because desktop worked.
+
+**Fix:** split loading the audio from playing it into two separate try/catches, and
+gave autoplay-rejection its own status (`"blocked"`) instead of folding it into
+`"error"`. On block, behavior now matches the existing reduced-motion path exactly: the
+audio is ready, Play is enabled, and a calm (non-alert) message explains a tap is
+needed — never framed as something broken. The manual Play button also now awaits and
+handles a rejection instead of optimistically claiming "playing" before playback is
+confirmed.
+
+**Not yet verified live** — deliberately, since diagnosis came from reasoning about the
+same-origin/HTTPS deploy (confirmed reachable, ruling out CORS/mixed-content) plus the
+documented behavior of `HTMLMediaElement.play()`'s rejection contract, not from a phone
+retry. There is currently zero test coverage of this component: Vitest is node-only
+until P5 brings jsdom (a standing decision, not an oversight), and this fix's
+correctness rests on the Web Audio spec, not an automated check. **The one phone check
+still owed:** does the "blocked" state actually appear and does its Play button actually
+work on real iOS Safari. This is the single verification worth spending on despite the
+user's stated quota pause — it is the literal P4 gate.
 
 ## OPEN: fixture-2 fix needs same-model live confirmation
 Do this FIRST next session, before anything else, budget permitting (see the API budget
