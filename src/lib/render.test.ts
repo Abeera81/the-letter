@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { FIXED_FOOTERS, buildRenderRequest, renderScript, __testables } from "./render";
+import { FIXED_FOOTERS, RenderError, buildRenderRequest, renderExplanation, __testables } from "./render";
 import { runSpanGate } from "./spanGate";
 import type { AbsentItem, Claim } from "./schema";
 
@@ -190,26 +190,147 @@ describe("the fixed footer", () => {
   });
 });
 
-describe("renderScript appends the right-language footer", () => {
-  // The model is mocked here on purpose. Which footer gets appended is pure
-  // TypeScript that runs after the model has already answered — it needs
-  // zero live calls to verify, and after a Gemini quota wall was hit mid
-  // verification of this exact fix, that is the point: this is exactly the
-  // kind of check the API budget rule in AGENTS.md asks for instead.
+/**
+ * `absent` above has exactly one item, so a valid mocked response needs
+ * exactly one entry in absentLines to satisfy the length-parity check.
+ */
+function mockValidResponse(script = "The mocked spoken script.", absentLines = ["Mocked absent line."]) {
+  mockCreate.mockResolvedValueOnce({
+    output_text: JSON.stringify({ script, absentLines }),
+  });
+}
+
+describe("renderExplanation — the happy path", () => {
+  // The model is mocked here on purpose. Which footer gets appended, and
+  // whether the two arrays line up, is pure TypeScript that runs after the
+  // model has already answered — it needs zero live calls to verify, and
+  // after a Gemini quota wall was hit mid verification of an earlier fix,
+  // that is the point: exactly the kind of check the API budget rule in
+  // AGENTS.md asks for instead.
   beforeEach(() => {
     mockCreate.mockReset();
-    mockCreate.mockResolvedValue({ output_text: "The mocked spoken script." });
     process.env.GEMINI_API_KEY = "test-key";
   });
 
   it.each(["en", "ur", "es"] as const)("appends the %s footer, not English by default", async (lang) => {
-    const script = await renderScript(claims, absent, lang);
+    mockValidResponse();
+    const { script } = await renderExplanation(claims, absent, lang);
     expect(script.endsWith(FIXED_FOOTERS[lang])).toBe(true);
   });
 
   it("never appends a different language's footer", async () => {
-    const script = await renderScript(claims, absent, "ur");
+    mockValidResponse();
+    const { script } = await renderExplanation(claims, absent, "ur");
     expect(script).not.toContain(FIXED_FOOTERS.en);
     expect(script).not.toContain(FIXED_FOOTERS.es);
+  });
+
+  it("returns absentLines separately from the spoken script", async () => {
+    mockValidResponse("The spoken script.", ["The letter does not give a phone number, translated."]);
+    const { script, absentLines } = await renderExplanation(claims, absent, "en");
+    expect(absentLines).toEqual(["The letter does not give a phone number, translated."]);
+    // The footer is appended to script only; absentLines is untouched by it.
+    expect(absentLines[0]).not.toContain(FIXED_FOOTERS.en);
+    expect(script).toContain("The spoken script.");
+  });
+
+  it("succeeds with an empty absentLines array when there is nothing missing", async () => {
+    mockValidResponse("All present.", []);
+    const { absentLines } = await renderExplanation(claims, [], "en");
+    expect(absentLines).toEqual([]);
+  });
+});
+
+describe("renderExplanation fails closed — never a broken or mismatched panel", () => {
+  beforeEach(() => {
+    mockCreate.mockReset();
+    process.env.GEMINI_API_KEY = "test-key";
+  });
+
+  it("retries once on malformed JSON, then succeeds if the second attempt is valid", async () => {
+    mockCreate.mockResolvedValueOnce({ output_text: "not valid json at all" });
+    mockValidResponse();
+    const result = await renderExplanation(claims, absent, "en");
+    expect(result.script).toContain("The mocked spoken script.");
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws malformed_render after two malformed attempts, never a third", async () => {
+    mockCreate.mockResolvedValue({ output_text: "still not json" });
+    await expect(renderExplanation(claims, absent, "en")).rejects.toMatchObject({
+      code: "malformed_render",
+    });
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects a response with the right shape but missing a required field", async () => {
+    mockCreate.mockResolvedValue({ output_text: JSON.stringify({ script: "only a script" }) });
+    await expect(renderExplanation(claims, absent, "en")).rejects.toMatchObject({
+      code: "malformed_render",
+    });
+  });
+
+  it("rejects absentLines of the wrong type entirely", async () => {
+    mockCreate.mockResolvedValue({
+      output_text: JSON.stringify({ script: "ok", absentLines: "not an array" }),
+    });
+    await expect(renderExplanation(claims, absent, "en")).rejects.toMatchObject({
+      code: "malformed_render",
+    });
+  });
+
+  it("rejects a length mismatch even though the JSON is perfectly valid", async () => {
+    // `absent` has one item; returning two (or zero) lines cannot be safely
+    // mapped back to which fact is which, so it must fail rather than guess.
+    mockCreate.mockResolvedValue({
+      output_text: JSON.stringify({
+        script: "ok",
+        absentLines: ["one", "two, which should not be here"],
+      }),
+    });
+    await expect(renderExplanation(claims, absent, "en")).rejects.toMatchObject({
+      code: "malformed_render",
+    });
+  });
+
+  it("rejects zero absentLines when one was expected", async () => {
+    mockCreate.mockResolvedValue({ output_text: JSON.stringify({ script: "ok", absentLines: [] }) });
+    await expect(renderExplanation(claims, absent, "en")).rejects.toMatchObject({
+      code: "malformed_render",
+    });
+  });
+
+  it("classifies a 401/403 as auth_failed and does not retry", async () => {
+    mockCreate.mockRejectedValue(Object.assign(new Error("nope"), { status: 401 }));
+    await expect(renderExplanation(claims, absent, "en")).rejects.toMatchObject({
+      code: "auth_failed",
+    });
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("classifies a 429 as quota_exceeded and does not retry", async () => {
+    mockCreate.mockRejectedValue(Object.assign(new Error("nope"), { status: 429 }));
+    await expect(renderExplanation(claims, absent, "en")).rejects.toMatchObject({
+      code: "quota_exceeded",
+    });
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws missing_api_key immediately, before ever calling the model", async () => {
+    delete process.env.GEMINI_API_KEY;
+    await expect(renderExplanation(claims, absent, "en")).rejects.toMatchObject({
+      code: "missing_api_key",
+    });
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("every failure is a RenderError, never a bare Error reaching the caller", async () => {
+    mockCreate.mockRejectedValue(new Error("something unexpected"));
+    try {
+      await renderExplanation(claims, absent, "en");
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(RenderError);
+    }
   });
 });

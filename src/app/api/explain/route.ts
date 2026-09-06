@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ExtractionError, extractClaims } from "@/lib/gemini";
 import { runSpanGate } from "@/lib/spanGate";
-import { RenderError, renderScript } from "@/lib/render";
+import { RenderError, renderExplanation } from "@/lib/render";
 import { ExplainRequestSchema, MAX_LETTER_CHARS, MIN_LETTER_CHARS } from "@/lib/schema";
 
 /**
@@ -30,7 +30,7 @@ const MESSAGES: Record<string, string> = {
   quota_exceeded: "The service that reads letters has reached its limit for now. Try again later.",
   provider_unavailable: "The service that reads letters did not answer. Wait a moment and try again.",
   malformed_output: "The letter could not be read cleanly. Try again, or paste a bit more of the letter.",
-  empty_script: "The letter was read, but the explanation came back empty. Try again.",
+  malformed_render: "The explanation could not be put into words cleanly. Try again.",
   nothing_verified: "None of what came back could be traced to your letter, so there is nothing safe to tell you. Try again, or check that you pasted the whole letter.",
 };
 
@@ -64,7 +64,11 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (verified.length === 0) return fail("nothing_verified", 502);
 
     // Gemini call #2. It gets verified claims and the absent list. Not the letter.
-    const script = await renderScript(verified, extraction.absent, parsed.data.targetLang);
+    const { script, absentLines } = await renderExplanation(
+      verified,
+      extraction.absent,
+      parsed.data.targetLang,
+    );
 
     return NextResponse.json({
       script,
@@ -72,6 +76,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       verified,
       dropped,
       absent: extraction.absent,
+      absentLines,
       meta: {
         droppedCount: dropped.length,
         extractedCount: extraction.claims.length,

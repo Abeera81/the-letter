@@ -4,11 +4,13 @@ import { useId, useRef, useState } from "react";
 import {
   MAX_LETTER_CHARS,
   MIN_LETTER_CHARS,
+  RTL_LANGUAGES,
   type AbsentItem,
   type Claim,
   type TargetLang,
 } from "@/lib/schema";
 import type { DroppedClaim } from "@/lib/spanGate";
+import AbsentPanel from "./AbsentPanel";
 import AudioControls from "./AudioControls";
 
 type Status = "idle" | "explaining" | "done" | "error";
@@ -19,6 +21,7 @@ type ExplainResponse = {
   verified: Claim[];
   dropped: DroppedClaim[];
   absent: AbsentItem[];
+  absentLines: string[];
   meta: { droppedCount: number; extractedCount: number; targetLang: TargetLang };
 };
 
@@ -32,9 +35,6 @@ const LANGUAGE_OPTIONS: Array<{ value: TargetLang; label: string }> = [
   { value: "ur", label: "اردو" },
   { value: "es", label: "Español" },
 ];
-
-/** PRD §8 / Tech Design §7: the transcript reads right-to-left only for Urdu. */
-const RTL_LANGUAGES: ReadonlySet<TargetLang> = new Set(["ur"]);
 
 export default function LetterInput({ exampleLetter }: { exampleLetter: string }) {
   const textareaId = useId();
@@ -203,6 +203,12 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
             )}
           </div>
 
+          <AbsentPanel
+            absent={result.absent}
+            absentLines={result.absentLines}
+            targetLang={result.meta.targetLang}
+          />
+
           <h3 className="mt-10 text-lg font-semibold">Where this came from</h3>
           <p className="mt-2 text-ink-soft">
             Every sentence above was built only from claims traced back to the exact
@@ -225,6 +231,7 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
                 verified: result.verified,
                 dropped: result.dropped,
                 absent: result.absent,
+                absentLines: result.absentLines,
               },
               null,
               2,

@@ -5,14 +5,11 @@ Durable project state. Update at the end of every session. The next session star
 ---
 
 ## Current status
-**Phase:** P5 CLOSED. Native Urdu speaker (the user) signed off explicitly: translation
-natural, no awkward phrasing, footer reads correctly, fair-hearing line does not read
-as advice. This was a real review, not a rubber stamp — see "RESOLVED: native Urdu
-sign-off" below for what was actually checked.
-**Next action:** P6 — the "letter does not say" panel (PRD F8). Also folds in closing
-the long-open P3 item: fixture 2's `explanation` field has never been confirmed live on
-the shipped model, and P6's own gate (fixture 2 surfaces the missing explanation) is
-the same question, so it gets answered as part of this phase rather than separately.
+**Phase:** P6 code complete, live-verified, awaiting the user's review before closing.
+The long-open P3 item is CLOSED as part of this: fixture 2's `explanation` field
+confirmed firing live on gemini-3.5-flash. AbsentPanel built with a fully translated,
+length-checked, fail-closed second Gemini output (`absentLines`).
+**Next action:** wait for user sign-off, then close P6 and propose P7.
 **Deadline:** 2026-09-07 06:59 UTC (11:59 AM PKT)
 
 ## Decisions locked (do not relitigate)
@@ -264,29 +261,61 @@ implementation cannot be used with `new`, and the mock silently failed instead o
 erroring clearly. Fixed by mocking with a real `class` instead. If mocking a
 constructor again, use a class from the start.
 
-## OPEN: fixture-2 fix needs same-model live confirmation
-Do this FIRST next session, before anything else, budget permitting (see the API budget
-rule below — this is exactly the kind of "genuinely needs a fresh call" case it allows).
+## RESOLVED at P6: fixture-2 explanation field confirmed live
+Open since P3. At P3, fixture 2's absent-info gap ("the letter does not explain what
+this charge is for") had no schema field to land in — `reason` only covers why an
+ACTION was taken. Added `explanation` as its own ABSENT_FIELDS value and sharpened the
+extraction prompt with a concrete example matching fixture 2's own "DETAIL OF CHARGES"
+line items. Confirmation was blocked twice by the daily Gemini quota — see the incident
+below — and the only interim signal was a diagnostic on a different model entirely.
 
-At P3, fixture 2's absent-info gap ("the letter does not explain what this charge is
-for") had no schema field to land in — `reason` only covers why an ACTION was taken.
-Added `explanation` as its own ABSENT_FIELDS value and sharpened the extraction prompt
-with a concrete example matching fixture 2's own "DETAIL OF CHARGES" line items.
+**Live-confirmed at P6, on the actual shipped model (`gemini-3.5-flash`):** fixture 2,
+requested in Urdu, returned `absent: [explanation, phone, contact_name]` on the first
+attempt. The extraction note itself: "The statement lists charge categories but does
+not explain what specific visit, service, or medical condition caused the charges" —
+exactly the distinction the sharpened prompt was written to draw. No further action
+needed on this item.
 
-**This was never confirmed live on the shipped model (`gemini-3.5-flash`).** The
-20-requests/day quota ran out mid-verification — see the incident below. The only signal
-gathered was a diagnostic run against `gemini-2.5-flash` (a separate quota bucket, NOT
-the shipped model), which does not honor structured output cleanly (wraps JSON in a
-markdown fence) but did spontaneously produce the phrase "explanation for charges
-(beyond category)" in free text — evidence the prompt wording communicates the right
-concept, not proof the schema-conformant version works on 3.5-flash.
+## P6 build notes: structured output for call #2, chosen deliberately over cheaper options
+The user asked for the "letter does not say" panel's on-screen text to be translated,
+not just spoken — the spoken script already narrates it correctly (proven in the P5
+Urdu review), but the panel had no equivalent. Presented three options honestly,
+including the user's own suggested shortcut (parse the translated absence sentences out
+of the already-generated prose): declined that one specifically, because reconstructing
+sentence boundaries across languages and assuming a 1:1 sentence-per-item mapping is
+exactly the kind of unverified heuristic the Span Gate's P2 rewrite taught this project
+not to trust. Chose full JSON-schema structured output (same mechanism call #1 already
+uses) over a cheaper text-delimiter approach, on the user's explicit call, given an
+explicit requirement: fail closed on anything malformed, never show a broken or
+partially-translated panel.
 
-Risk is judged small: nothing is built on top of this yet, and the fair-hearing ordering
-fix from the same P3 session IS live-verified and unaffected. Committed anyway rather
-than burn ~half a day's budget waiting for the quota to reset. First live call next
-session should be exactly this: run fixture 2 through /api/explain, confirm
-`absent` includes `{ field: "explanation", ... }`. If it doesn't fire, strengthen the
-extraction prompt further before touching anything else.
+**What changed:** `render.ts`'s call #2 now requests `{ script, absentLines: string[] }`
+via `response_format` + a Zod-generated JSON schema, mirroring extraction's pattern.
+`renderScript` was renamed `renderExplanation` (breaking rename, contained to
+render.ts/route.ts, no other call sites existed). One retry on malformed output, same
+as extraction. A NEW check beyond schema validity: `absentLines.length` must exactly
+equal `absent.length`, or it fails closed as `malformed_render` regardless of otherwise
+being valid JSON — a model that drops or merges one absence item is indistinguishable
+from one that mistranslated it, and this product does not show a "probably right" list.
+
+Extracted `classifySdkError()` into its own module (`sdkError.ts`) so both Gemini calls
+share the same auth/quota classification instead of duplicating it — `gemini.ts`'s
+`classifyExtractionError` is now a one-line wrapper, kept for existing call sites.
+
+**Fail-closed path is genuinely tested, not just the happy path** (explicit requirement
+from the user): 12 tests in render.test.ts cover malformed JSON, right-shape-wrong-type,
+length mismatch both directions, auth_failed/quota_exceeded with no retry, missing key
+before any call is made, and confirmation that every failure surfaces as a `RenderError`
+instance rather than a bare `Error`. 103 tests total, all green.
+
+**Live-verified in one request** (fixture 2, Urdu — see the RESOLVED entry above):
+`explanation`/`phone`/`contact_name` extracted, `absentLines` came back length-3 and
+correctly translated and ordered, footer intact. RTL confirmed on the real rendered DOM
+(not just asserted): `dir="rtl"`, `lang="ur"`, computed CSS `direction: rtl`, exactly 3
+`<li>` elements in the exact order and content of the captured `absentLines`. The DOM
+check itself replayed the already-captured live response through a stubbed fetch rather
+than spending a second live call — the API budget rule applied to the verification step
+itself, not just the build.
 
 ## INCIDENT: ran the Gemini free-tier quota dry mid-P3
 `gemini-3.5-flash` free tier is **20 requests/day per project**, resetting at midnight
@@ -314,3 +343,4 @@ on the one or two things that genuinely need a fresh one.
 | 2026-09-06 | P4 CLOSED | Eric voice chosen and wired in (7 auditions, 2 rounds, see VOICE CHOSEN above). Production outage on first deploy diagnosed and fixed with classifyExtractionError (auth_failed/quota_exceeded, 10 tests, zero API calls). Second real bug found and fixed: Safari autoplay rejection was mislabeled as a network failure — split load/play into separate try/catches, added a "blocked" status matching the reduced-motion UX pattern. Confirmed live on real iOS Safari: blocked-state Play button, real audio, slow replay, all working. Submit button renamed ("Explain this letter") to stop overselling audio it doesn't directly control. 81 tests green. | Propose P5 |
 | 2026-09-06 | P5 (code) | Language selector (self-named: English/اردو/Español), RTL transcript rendering (dir/lang scoped to just the script panel, confirmed live: dir="rtl" lang="ur" computed rtl), per-language FIXED_FOOTERS. Found and fixed a real bug: footer was hardcoded English regardless of targetLang. Live-verified body text via one Gemini call before the local key's daily quota ran out again; footer fix verified deterministically with a mocked SDK (5 new tests) rather than spending another live call. 86 tests green. Sent real audio + text to the user for native Urdu review — not closing until they sign off. | Wait for Urdu review, then close P5 |
 | 2026-09-06 | P5 CLOSED | Native Urdu speaker (the user) reviewed real output and signed off explicitly: natural translation, correct register, footer reads correctly, fair-hearing line not read as advice. Real quality gate, not a formality. | P6 |
+| 2026-09-06 | P6 (code + live) | AbsentPanel.tsx built. render.ts's call #2 now returns structured `{script, absentLines}` via JSON schema, with a length-parity fail-closed check beyond Zod validation. classifySdkError extracted to a shared module. Closed the long-open P3 explanation-field item live, on the shipped model. RTL/translation confirmed on the real rendered DOM by replaying a captured live response through a stubbed fetch, not a second live call. 103 tests green, 12 new covering the fail-closed path specifically. | Wait for user review, then close P6 |

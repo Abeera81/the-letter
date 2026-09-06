@@ -33,6 +33,13 @@ export const ABSENT_FIELDS = [
 export const TARGET_LANGUAGES = ["en", "ur", "es"] as const;
 export type TargetLang = (typeof TARGET_LANGUAGES)[number];
 
+/**
+ * PRD §8 / Tech Design §7: the on-screen transcript reads right-to-left for
+ * Urdu, and only Urdu. Shared here rather than duplicated per component, so
+ * the script panel and the absent-info panel can never disagree about it.
+ */
+export const RTL_LANGUAGES: ReadonlySet<TargetLang> = new Set(["ur"]);
+
 export const ClaimSchema = z.object({
   id: z
     .string()

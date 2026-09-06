@@ -4,6 +4,7 @@ import {
   extractionJsonSchema,
   type ExtractionResult,
 } from "./schema";
+import { classifySdkError } from "./sdkError";
 
 /**
  * Gemini call #1 — EXTRACTION.
@@ -41,22 +42,12 @@ export class ExtractionError extends Error {
 /**
  * Turns whatever the SDK throws into one of our own error codes.
  *
- * The SDK's specific error classes (AuthenticationError, RateLimitError, ...)
- * are not exported from the package, so this cannot use `instanceof`. Every
- * one of them does set a numeric `.status` on the thrown object though
- * (confirmed by reading the installed package's compiled source, not
- * documentation) — this classifies on that instead, which is stable even if
- * the exact class names the SDK uses change.
- *
- * Exported as a pure function so it can be unit tested directly, without
- * mocking the network or the SDK.
+ * Thin wrapper over the shared classifier in sdkError.ts, which call #2
+ * (rendering) uses too — kept as its own named export here since existing
+ * call sites and tests already depend on this exact name and signature.
  */
 export function classifyExtractionError(error: unknown): ExtractionErrorCode {
-  const status = (error as { status?: unknown } | null)?.status;
-  if (typeof status !== "number") return "provider_unavailable";
-  if (status === 401 || status === 403) return "auth_failed";
-  if (status === 429) return "quota_exceeded";
-  return "provider_unavailable";
+  return classifySdkError(error);
 }
 
 const SYSTEM_INSTRUCTION = `You read official letters — benefits notices, medical bills, housing notices — and extract what they say. You are the first half of a tool for someone who cannot read the letter themselves.
