@@ -59,6 +59,7 @@ Plan → get approval → build one phase → verify → commit → report.
 - **Never leave the tree broken between phases.** Every commit should be a working app.
 - If a phase takes more than ~90 minutes, stop and report rather than pushing on silently.
 - Commit frequently with real messages. The repo history is judged — it must show the work happened inside the challenge window.
+- **Push after every commit, not just when asked.** A local-only commit is not on GitHub and does not exist for judging purposes. This was learned the hard way at P8: a full phase was committed locally and sat unpushed until the user found it missing and pushed it by hand. Treat "commit" and "push" as one action from here on — no exceptions for small or in-progress work.
 
 ## 5. Competition rules that constrain you
 

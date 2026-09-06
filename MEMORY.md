@@ -11,8 +11,10 @@ error messages — and confirmed all good; I did the machine half — logging/pe
 footer, no-advice language, server-side keys, build/lint/test — and found ONE real gap,
 basic per-IP rate limiting, which is now built, tested, and live-verified; see RESOLVED
 entry below).
-**Next action:** demo-ready Audit Panel drop confirmed real (see RESOLVED entry below).
-Propose the full P11 plan next.
+**Next action:** P11 proposed (see "P11 plan (proposed, awaiting approval)" below) —
+demo video, README expansion, DEV post. Awaiting the user's approval and their choice
+of sequencing (suggested: record video first, then draft the DEV post while they
+record, README last).
 **Deadline:** 2026-09-07 06:59 UTC (11:59 AM PKT)
 **Gemini quota note:** hit the 20/day project cap again today (2026-09-06) partway
 through demo-fixture testing — the shared key is used by both local dev and the
@@ -47,6 +49,16 @@ let this happen again — treat "commit" and "push" as one action from here on.
   (`cjVigY5qzO86Huf0OWal`), catalog label "Smooth, Trustworthy". See "VOICE CHOSEN"
   below for the full audition story.
 - Any open-source code borrowed (must be credited in the post): _none yet_
+- **Model reliability finding (this is submission-post material):** across every real
+  live extraction run this session — fixtures 1, 2, 3, and 4, on the shipped
+  `gemini-3.5-flash` — **zero claims were ever dropped by the Span Gate.** The model
+  was consistently, faithfully exact in its verbatim quoting every single time,
+  including against fixture 4's hostile injection and fixture 3's dense legalistic
+  run-on phrasing. Worth stating plainly in the post: the gate is a safety net that,
+  in real testing, the model rarely needed — its value is the guarantee, not that it
+  fires constantly. The one drop shown in the demo (P9/P11 prep) is a deliberately
+  corrupted case, disclosed as such, not a live model failure — see "RESOLVED: demo-
+  ready Audit Panel drop" below for exactly how and why.
 
 ## Verified library facts (do not re-derive from memory)
 - `@google/genai` **2.21.0** uses a new **`client.interactions.create()`** API, NOT the
@@ -711,8 +723,39 @@ live calls.** Verify against saved model output where possible; spend a live cal
 on the one or two things that genuinely need a fresh one.
 
 ## Open questions
-- iOS Safari autoplay behaviour after the submit gesture — verify on a real device at P4.
-- Urdu RTL transcript layout at 360px — verify at P5, not later.
+_None currently open._ (The two that used to live here — iOS Safari autoplay, Urdu RTL
+at 360px — were both verified live long ago, at P4 and P5 respectively; removed so this
+section doesn't mislead a fresh session into thinking they're still pending.)
+
+## P11 plan (proposed to the user, awaiting approval)
+Per Tech Design §10 and `docs/SUBMISSION-PLAN.md`, three deliverables:
+
+1. **Demo video**, 60–90s, record before feeling ready, no voiceover. Beat sheet (now
+   fully demo-ready, including beat 6): real letter on screen (0:00, silent) → press
+   play, Urdu narration (0:08) → tap a claim, source highlights (0:25) → "letter does
+   not say" panel (0:35) → slow replay (0:45) → **Audit Panel firing** (0:55, use the
+   recipe in scratchpad — see the RESOLVED demo entry above) → printed action card
+   (1:05).
+2. **README expansion.** The starter (`README.md`, currently ~50 lines, explicitly
+   marked "expand at P11") already covers the Span Gate, privacy, and the refusal
+   list well. Still needs: the actual repo/demo URLs, a credits section (check for any
+   borrowed open-source code — "none yet" is the current placeholder in this file's
+   own "To record as you go" section, needs a final check before publishing), and a
+   note on any post-deadline commits if there end up being any.
+3. **The DEV post**, 1,200–1,800 words, DEV's required template sections (`What I
+   Built` / `Demo` / `Code` / `How I Built It` / `Prize Categories`), structured
+   exactly per `docs/SUBMISSION-PLAN.md`: inversion-stating title (not a tech-list
+   title) → open with the actual letter sentence → the participation-gap stats, cited
+   → the inversion → what was built → **the Span Gate as the ~450-word heart of the
+   post, with the actual gate code inline** → why voice isn't garnish → why Urdu →
+   the hostile-fixture proof (real evidence from P9 now, not hypothetical) → the
+   refusal list, its own heading → limitations (already current, includes the
+   English-label note from P7) → both prize categories named explicitly, one sentence
+   each on why the tech is load-bearing.
+
+Suggested sequencing given the approaching deadline: record the video first (needs the
+user hands-on for narration/timing), draft the DEV post text in parallel for their
+review, README last since it's the smallest lift.
 
 ## Session log
 | Date | Phase | What shipped | Next |
