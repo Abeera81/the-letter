@@ -109,12 +109,18 @@ Beat sheet:
 No voiceover explaining what's happening. Let it play.
 
 ## Pre-publish checklist
-- [ ] Demo link live and working from a fresh browser
-- [ ] GitHub repo public and embedded
-- [ ] Every statistic linked to its source
-- [ ] Span Gate code included inline in the post
-- [ ] Both prize categories named
-- [ ] Any borrowed open-source code credited
-- [ ] Any post-deadline commits noted in the README
-- [ ] Post is in English
-- [ ] Read it aloud once — cut every sentence that doesn't earn its place
+
+Verified 2026-09-06 23:10 PKT.
+
+- [x] Demo link live and working from a fresh browser — `https://the-letter-one.vercel.app/` returns 200
+- [x] GitHub repo public and embedded — unauthenticated request returns 200; `{% embed %}` at post line 197
+- [x] Every statistic linked to its source — SNAP participation gap and NCOA $58B both linked, both verified live
+- [x] Span Gate code included inline in the post — 5 TypeScript blocks, including the windowed-match fix and the numeric guard
+- [x] Both prize categories named — Best Use of ElevenLabs, Best Use of Google AI
+- [x] Any borrowed open-source code credited — full dependency audit in README; nothing borrowed to credit
+- [ ] Any post-deadline commits noted in the README — N/A so far; placeholder is in the README if one lands after 06:59 UTC
+- [x] Post is in English
+- [x] Read it aloud once — cut every sentence that doesn't earn its place
+
+Still open (owner: Abeera):
+- [ ] Record the demo video and replace `[DEMO VIDEO EMBED PLACEHOLDER]` in `docs/DEV-POST-DRAFT.md`

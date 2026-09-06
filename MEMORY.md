@@ -11,10 +11,19 @@ real problem. **P11 in progress: the DEV post is written and complete except the
 video embed** (`docs/DEV-POST-DRAFT.md`, ~1,960 prose words, all three screenshots and
 both citations in and verified 200).
 **Next action:** **the demo video — the user is recording it themselves**, with fresh
-Gemini/ElevenLabs keys reserved for that take. Do not touch API calls or the live app
-while that is in progress. When the video exists, paste its embed into the one
-remaining `[DEMO VIDEO EMBED PLACEHOLDER]` in `docs/DEV-POST-DRAFT.md` — that is the
-last thing standing between here and publishing. **README is DONE** (5776ef3).
+Gemini/ElevenLabs keys. **Both fresh keys were smoke-tested 2026-09-06 23:1x and both
+work** (Gemini 200, 2 claims extracted; ElevenLabs 200, audio/mpeg). The new Gemini key
+is 53 chars and does *not* start with `AIza` — that shape is unusual but valid, so do
+not treat it as broken. Dev server was restarted so it picked up the new values.
+For the **Audit Panel drop beat**, use the headed recording harness (`record-drop.cjs`,
+session files dir — see "Recording the drop on camera" below): a real visible Chrome
+window with `/api/explain` stubbed to the corrupted-claim result, **zero Gemini calls**,
+audio still live. When the video exists, paste its embed into the one remaining
+`[DEMO VIDEO EMBED PLACEHOLDER]` in `docs/DEV-POST-DRAFT.md` — that is the last thing
+standing between here and publishing. **README is DONE** (5776ef3).
+**Pre-publish checklist:** all items verified 2026-09-06 23:10 except the video and the
+post-deadline-commits line (N/A so far) — see `docs/SUBMISSION-PLAN.md`. Suite green at
+121 tests / 12 files; live URL and repo both 200 and the repo is public.
 **Repo safety:** full-history secret scan run 2026-09-06 — **clean**, safe to publish.
 See the P11 session-log row for method and scope.
 **Deadline:** 2026-09-07 06:59 UTC (11:59 AM PKT)
@@ -833,6 +842,36 @@ a temp dir outside the repo so `package.json` stays clean. Note `--reporter=basi
 not valid in this Vitest version. **Caveat:** this drives a headless browser, so it
 does not help the user check something by hand — it is for automated capture only,
 which is exactly why it succeeded where the proxy failed.
+
+### Recording the drop on camera (2026-09-06 23:2x): headed harness
+The caveat above turned out to be a property of *how it was run*, not of `page.route()`.
+Interception works identically with `headless: false`, which opens a **real, visible
+Chrome window the user can drive by hand and screen-record**. That closes the gap: the
+Audit Panel drop can now be filmed without a single Gemini call.
+
+Harness: `record-drop.cjs`, kept in the session files dir alongside
+`replay-payload.json` (deliberately **not** committed — it is demo tooling, not product
+code, and `package.json` stays clean). Run from that folder with
+`NODE_PATH=$env:TEMP\tl-shots\node_modules`:
+
+- `node record-drop.cjs` → withDrop: **7 checked, 6 kept, 1 dropped**
+- `node record-drop.cjs clean` → 6 checked, 6 kept, 0 dropped
+- `HEADED=0 node record-drop.cjs` → headless self-test, asserts the drop renders and
+  exits non-zero if the stub was bypassed or anything reached googleapis.com
+
+Design points worth keeping: `/api/explain` is stubbed but **`/api/speak` is left live**,
+so the audio in the recording is genuinely ElevenLabs (only Gemini is quota-constrained,
+so this costs nothing scarce). A tripwire route aborts any request to `*.googleapis.com`
+and logs loudly, so a silent live call cannot spend quota mid-take. The stub body
+mirrors `src/app/api/explain/route.ts`'s exact response shape.
+
+**Verified before handing it over:** the payload's `source` is byte-identical (1363
+chars) to `fixtures/01-snap-closure.txt` trimmed — which is what "Try an example letter"
+loads — so the claim offsets line up and highlighting works. Headless self-test passed
+(`intercepted=1 leaked=0`, audit line read "Checked 7 claims, kept 6. Dropped 1"), and
+headed mode was confirmed to open a real window titled "The Letter". Both test instances
+were stopped afterwards.
+
 
 ## P11 plan (proposed to the user, awaiting approval)
 Per Tech Design §10 and `docs/SUBMISSION-PLAN.md`, three deliverables:
