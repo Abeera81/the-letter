@@ -6,19 +6,20 @@ import {
   MIN_LETTER_CHARS,
   RTL_LANGUAGES,
   type AbsentItem,
-  type Claim,
+  type LocatedClaim,
   type TargetLang,
 } from "@/lib/schema";
 import type { DroppedClaim } from "@/lib/spanGate";
 import AbsentPanel from "./AbsentPanel";
 import AudioControls from "./AudioControls";
+import SourceHighlight from "./SourceHighlight";
 
 type Status = "idle" | "explaining" | "done" | "error";
 
 type ExplainResponse = {
   script: string;
   documentType: string;
-  verified: Claim[];
+  verified: LocatedClaim[];
   dropped: DroppedClaim[];
   absent: AbsentItem[];
   absentLines: string[];
@@ -45,6 +46,8 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
   const [status, setStatus] = useState<Status>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [result, setResult] = useState<ExplainResponse | null>(null);
+  const [submittedText, setSubmittedText] = useState("");
+  const [selectedClaimId, setSelectedClaimId] = useState<string | null>(null);
 
   const tooShort = text.trim().length < MIN_LETTER_CHARS;
 
@@ -53,12 +56,15 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
     setStatus("explaining");
     setErrorMessage("");
     setResult(null);
+    setSelectedClaimId(null);
+    const trimmed = text.trim();
+    setSubmittedText(trimmed);
 
     try {
       const response = await fetch("/api/explain", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: text.trim(), targetLang }),
+        body: JSON.stringify({ text: trimmed, targetLang }),
       });
       const body = await response.json();
 
@@ -81,6 +87,7 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
     setStatus("idle");
     setResult(null);
     setErrorMessage("");
+    setSelectedClaimId(null);
     textareaRef.current?.focus();
   }
 
@@ -223,6 +230,45 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
               ? "Nothing was dropped."
               : `Dropped ${result.meta.droppedCount} that could not be traced to the letter.`}
           </p>
+
+          {/* Tap a claim, its exact words light up below in the original
+              letter. These labels stay in English — they name the exact
+              words of the original letter, not the translated transcript
+              above, even when Urdu or Spanish is selected. */}
+          <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Verified claims">
+            {result.verified.map((claim) => {
+              const selected = selectedClaimId === claim.id;
+              const locatable = claim.sourceStart !== null && claim.sourceEnd !== null;
+              return (
+                <button
+                  key={claim.id}
+                  type="button"
+                  aria-pressed={selected}
+                  disabled={!locatable}
+                  onClick={() => setSelectedClaimId(selected ? null : claim.id)}
+                  className="min-h-[3rem] rounded-md border-2 border-rule bg-paper-raised px-4 py-2 text-left text-base disabled:cursor-not-allowed disabled:opacity-50 aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-white"
+                  title={locatable ? undefined : "The exact location of this claim in the letter could not be pinpointed."}
+                >
+                  {claim.statement}
+                </button>
+              );
+            })}
+          </div>
+
+          <h4 className="mt-6 text-base font-semibold">Original letter</h4>
+          <SourceHighlight
+            sourceText={submittedText}
+            span={
+              selectedClaimId
+                ? (() => {
+                    const claim = result.verified.find((c) => c.id === selectedClaimId);
+                    return claim && claim.sourceStart !== null && claim.sourceEnd !== null
+                      ? { start: claim.sourceStart, end: claim.sourceEnd }
+                      : null;
+                  })()
+                : null
+            }
+          />
 
           <pre className="mt-4 overflow-x-auto rounded-md border-2 border-rule bg-paper-raised p-4 text-base">
             {JSON.stringify(

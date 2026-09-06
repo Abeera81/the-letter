@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ExtractionError, extractClaims } from "@/lib/gemini";
+import { locateSpan } from "@/lib/locateSpan";
 import { runSpanGate } from "@/lib/spanGate";
 import { RenderError, renderExplanation } from "@/lib/render";
 import { ExplainRequestSchema, MAX_LETTER_CHARS, MIN_LETTER_CHARS } from "@/lib/schema";
@@ -70,10 +71,18 @@ export async function POST(request: Request): Promise<NextResponse> {
       parsed.data.targetLang,
     );
 
+    // Where each verified claim's evidence sits in the raw letter, for the
+    // tap-to-highlight view. Purely additive to an already-verified claim —
+    // never a second chance for evidence the gate rejected.
+    const located = verified.map((claim) => {
+      const span = locateSpan(parsed.data.text, claim.evidence);
+      return { ...claim, sourceStart: span?.start ?? null, sourceEnd: span?.end ?? null };
+    });
+
     return NextResponse.json({
       script,
       documentType: extraction.documentType,
-      verified,
+      verified: located,
       dropped,
       absent: extraction.absent,
       absentLines,

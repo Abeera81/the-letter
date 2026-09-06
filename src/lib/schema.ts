@@ -63,6 +63,17 @@ export const ClaimSchema = z.object({
 });
 export type Claim = z.infer<typeof ClaimSchema>;
 
+/**
+ * A verified claim plus where its evidence sits in the raw letter, in
+ * character offsets — computed by locateSpan for the "show me where it says
+ * that" highlight. null when a confident location could not be found: the UI
+ * must offer no highlight for that claim rather than guess one. See P7.
+ */
+export type LocatedClaim = Claim & {
+  sourceStart: number | null;
+  sourceEnd: number | null;
+};
+
 export const AbsentItemSchema = z.object({
   field: z
     .enum(ABSENT_FIELDS)

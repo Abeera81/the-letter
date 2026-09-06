@@ -84,7 +84,7 @@ Frame it correctly: this isn't caution bolted on, it's the design.
 Name them yourself, before a judge does:
 - the gate verifies a quote exists, not that the interpretation is right
 - fixtures are synthetic; no real caseworker or recipient has tested this
-- Urdu translation is unaudited by a native reviewer
+- the "show me where it says that" claim labels stay in English even when the transcript is Urdu or Spanish — they name words in the original letter, not the translation
 - OCR is the weakest link
 - it explains letters; it doesn't give advice, and a person in trouble still needs a human
 

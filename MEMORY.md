@@ -5,11 +5,11 @@ Durable project state. Update at the end of every session. The next session star
 ---
 
 ## Current status
-**Phase:** P6 code complete, live-verified, awaiting the user's review before closing.
-The long-open P3 item is CLOSED as part of this: fixture 2's `explanation` field
-confirmed firing live on gemini-3.5-flash. AbsentPanel built with a fully translated,
-length-checked, fail-closed second Gemini output (`absentLines`).
-**Next action:** wait for user sign-off, then close P6 and propose P7.
+**Phase:** P7 code complete, self-verified (unit tests + a stubbed-fetch UI drive,
+zero live Gemini calls spent), awaiting the user's own look at the tap-and-highlight
+interaction before closing — their explicit requirement, same as every UI-facing phase.
+**Next action:** wait for user sign-off, then close P7 and propose P8 (printable action
+card).
 **Deadline:** 2026-09-07 06:59 UTC (11:59 AM PKT)
 
 ## Decisions locked (do not relitigate)
@@ -317,6 +317,62 @@ check itself replayed the already-captured live response through a stubbed fetch
 than spending a second live call — the API budget rule applied to the verification step
 itself, not just the build.
 
+## P7 build notes: show-me-where-it-says-that highlighting
+Tech Design's original framing ("tap a spoken sentence, source lights up") assumes a
+1:1 mapping between rendered prose sentences and claims. That mapping doesn't exist —
+call #2's script is Gemini's own assembled/translated prose, not one sentence per
+claim — and reverse-engineering it would be exactly the same category of unverified
+heuristic the user already declined once at P6. Proposed and got explicit sign-off to
+tie tap-targets to the verified claims themselves instead (their `statement` field,
+already plain-English and human-readable, sitting unused in the debug JSON panel)
+rather than to parsed transcript sentences.
+
+**What changed:**
+- `src/lib/locateSpan.ts` (new): given already-verified evidence and the raw letter,
+  finds the evidence's exact character offsets in the raw text. Deliberately kept
+  separate from `spanGate.ts` — the user does not want that file touched again once it
+  "finally holds correctly" (P2). Fast path is `indexOf` (byte-exact quotes, the common
+  case). Fallback is a tolerant regex — same reformatting tolerances `normalize()`
+  already grants (whitespace runs, quote glyphs, dash glyphs) — but built to hand back
+  real raw-text indices directly rather than requiring a position remap through
+  normalize()'s own whitespace-collapsing/NFKC pipeline. **Fails closed:** returns
+  `null` when no confident match exists, same principle as P6 — no guessed or
+  approximate span is ever offered.
+- `schema.ts`: new `LocatedClaim = Claim & { sourceStart: number | null; sourceEnd: number | null }`.
+- `route.ts`: after `renderExplanation`, maps each verified claim through `locateSpan`
+  against the original submitted letter text before returning. Purely additive —
+  never a second chance for evidence the gate already rejected.
+- `SourceHighlight.tsx` (new): read-only rendering of the pasted letter, always LTR
+  (it shows the original letter as pasted, never the translated transcript), with the
+  selected claim's span wrapped in `<mark>`.
+- `LetterInput.tsx`: a row of claim buttons under "Where this came from" (label =
+  `claim.statement`). A claim with `sourceStart`/`sourceEnd` both `null` renders
+  **disabled**, with a title tooltip explaining why — the fail-closed UI requirement.
+  Clicking a locatable claim toggles it selected (`aria-pressed`) and drives
+  `SourceHighlight`; selection resets on new submit or a fresh example letter.
+
+**Known, accepted limitation (approved by the user, noted in SUBMISSION-PLAN.md):**
+claim labels stay in English even when Urdu/Spanish is selected, because they name the
+original letter's actual words, not the translated transcript. No code change wanted.
+
+**Verified before handing to the user for their own look** (their explicit ask, same
+pattern as every UI-facing phase): 8 new `locateSpan` unit tests (exact match, curly
+quote, dash glyph, collapsed line break, case-insensitivity, not-found → null, empty
+evidence → null, regex-special characters in evidence don't throw) — 111 tests total,
+all green. Then drove the real UI end to end with a stubbed `/api/explain` response
+(zero live Gemini calls spent) built from real, exact substrings of fixture 1,
+including one deliberately unlocatable claim: confirmed in the browser that (a) the
+unlocatable claim renders disabled with its reason as a tooltip and never produces a
+`<mark>`, (b) clicking a locatable claim's button sets `aria-pressed="true"` and
+highlights exactly its evidence text and nothing else in the real rendered letter,
+including a multi-line evidence span with an internal line break, (c) switching
+between claims moves the highlight correctly, (d) toggling the same claim off clears
+the highlight and drops `aria-pressed` entirely. `npm run build`, lint, and `tsc
+--noEmit` all clean.
+
+**Not yet done:** the user has not looked at the interaction with their own eyes —
+they explicitly want to before this closes, same as every other UI-facing phase.
+
 ## INCIDENT: ran the Gemini free-tier quota dry mid-P3
 `gemini-3.5-flash` free tier is **20 requests/day per project**, resetting at midnight
 Pacific (confirmed against ai.google.dev/gemini-api/docs/rate-limits, not assumed). A new
@@ -344,3 +400,5 @@ on the one or two things that genuinely need a fresh one.
 | 2026-09-06 | P5 (code) | Language selector (self-named: English/اردو/Español), RTL transcript rendering (dir/lang scoped to just the script panel, confirmed live: dir="rtl" lang="ur" computed rtl), per-language FIXED_FOOTERS. Found and fixed a real bug: footer was hardcoded English regardless of targetLang. Live-verified body text via one Gemini call before the local key's daily quota ran out again; footer fix verified deterministically with a mocked SDK (5 new tests) rather than spending another live call. 86 tests green. Sent real audio + text to the user for native Urdu review — not closing until they sign off. | Wait for Urdu review, then close P5 |
 | 2026-09-06 | P5 CLOSED | Native Urdu speaker (the user) reviewed real output and signed off explicitly: natural translation, correct register, footer reads correctly, fair-hearing line not read as advice. Real quality gate, not a formality. | P6 |
 | 2026-09-06 | P6 (code + live) | AbsentPanel.tsx built. render.ts's call #2 now returns structured `{script, absentLines}` via JSON schema, with a length-parity fail-closed check beyond Zod validation. classifySdkError extracted to a shared module. Closed the long-open P3 explanation-field item live, on the shipped model. RTL/translation confirmed on the real rendered DOM by replaying a captured live response through a stubbed fetch, not a second live call. 103 tests green, 12 new covering the fail-closed path specifically. | Wait for user review, then close P6 |
+| 2026-09-06 | P6 CLOSED | User rejected pasted-text evidence as insufficient and independently confirmed the Urdu AbsentPanel live in the browser against a running dev server: renders correctly, all three lines accurate to fixture 2's actual missing fields. Real quality gate, same standard as P5. ElevenLabs quota hit again during the check — expected/known limit, not a bug, no action taken; user will bring a fresh key for the demo recording. | P7 |
+| 2026-09-06 | P7 (code) | locateSpan.ts (fail-closed evidence→raw-offset finder, kept separate from spanGate.ts on purpose), LocatedClaim type, route.ts wiring, SourceHighlight.tsx, tappable verified-claims list in LetterInput.tsx. Declined mapping rendered prose sentences back to claims (unverified heuristic, same risk class as the P6 shortcut already declined) in favor of tapping the real verified claims directly — user's explicit call. 8 new locateSpan tests, 111 total green. Self-verified the full tap/highlight/toggle interaction in a real browser via a stubbed /api/explain response built from real fixture-1 substrings (zero live Gemini calls), including the disabled/unlocatable-claim fail-closed case. Added the English-label limitation to SUBMISSION-PLAN.md; also corrected a now-stale line there claiming Urdu was unaudited (it was reviewed and signed off at P5). | Wait for the user's own look at the interaction, then close P7 |
