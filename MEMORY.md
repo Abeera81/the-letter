@@ -5,12 +5,15 @@ Durable project state. Update at the end of every session. The next session star
 ---
 
 ## Current status
-**Phase:** P8 CLOSED (user confirmed the print preview live). P9 in progress: the live
-hostile-fixture test PASSED CLEANLY (see RESOLVED entry below — real proof, not
-assumed), and the Audit Panel (F11) is built and self-verified.
-**Next action:** report the Audit Panel back and get sign-off to close P9, then move to
-whatever the user schedules next (P10 accessibility/error-state pass, or P11
-submission materials, per Tech Design §10 and the approaching deadline).
+**Phase:** P9 CLOSED (hostile-fixture test passed live; Audit Panel built). P10 CLOSED
+(user did the human half of the checklist — keyboard-only, 200% zoom, narrow width,
+error messages — and confirmed all good; I did the machine half — logging/persistence,
+footer, no-advice language, server-side keys, build/lint/test — and found ONE real gap,
+basic per-IP rate limiting, which is now built, tested, and live-verified; see RESOLVED
+entry below).
+**Next action:** build the deliberately-corrupted demo fixture so the Audit Panel can
+fire live and real for the demo video (user's explicit precondition before scripting
+P11's video), then propose the full P11 plan.
 **Deadline:** 2026-09-07 06:59 UTC (11:59 AM PKT)
 **Standing instruction (2026-09-06): push to origin after every commit, not just when
 asked.** The user pushed P8 manually after finding it wasn't on GitHub and said not to
@@ -610,6 +613,45 @@ calls) since no fixture run this session had produced a nonzero drop count to te
 against for real. Build/lint/tsc/117 tests clean (no new tests — the reason mapping's
 exhaustiveness is enforced at compile time, and the component itself is presentational).
 
+## RESOLVED at P10: basic per-IP rate limiting, a real gap not a formality
+Tech Design §9 explicitly required this ("Add basic per-IP rate limiting on both
+routes before deploying publicly — an exposed unauthenticated AI endpoint will get
+drained") and it had never been built. Caught it by actually reading through the
+checklist item by item rather than assuming it was covered, and reported it as a real,
+live gap rather than folding it into a general "looks fine" — the app was already
+public on Vercel with no protection on either route's paid provider key.
+
+**What was built, deliberately basic per the user's instruction ("nothing more
+elaborate") and Tech Design's own scope:** `src/lib/rateLimit.ts` — a fixed-window
+in-memory counter (5 requests / 60s per key), keyed by `x-forwarded-for`. Known,
+accepted limitation documented in the module's own comment: this only limits requests
+hitting the same warm serverless instance and resets on cold start or redeploy — not a
+distributed store, not a real API gateway, just enough to stop casual draining, which
+is exactly what "basic" was asked for.
+
+Wired into both `/api/explain` and `/api/speak` as the very first check in `POST`,
+before body parsing — a request over the limit never reaches JSON parsing, schema
+validation, or (critically) the paid Gemini/ElevenLabs calls.
+
+**Verified three ways, not just asserted:**
+1. `rateLimit.test.ts` — allows up to the limit then blocks, tracks keys
+   independently, resets after the window elapses.
+2. A new route-level test in `speak/route.test.ts` drives the real `POST` handler 6
+   times from the same simulated IP and asserts the 6th comes back `429`
+   `rate_limited` — proves the wiring, not just the underlying function. (Existing
+   tests in that file needed a fix: they shared one implicit IP via no
+   `x-forwarded-for` header, which would have made them silently share one rate-limit
+   bucket and start failing each other; each now gets a unique IP by default.)
+3. **Live, against the actually-running dev server, zero Gemini calls spent** (the
+   limiter fires before body validation, so an intentionally-too-short letter still
+   proves the block without spending quota): 6 rapid requests from one curl-simulated
+   IP to `/api/explain` returned `400,400,400,400,400,429` — exactly the limit, exactly
+   where expected. A second IP hitting the same route in between was unaffected
+   (`400`, not `429`), proving per-key isolation on the real server, not just in a
+   test double. Same shape confirmed on `/api/speak`.
+
+121 tests, build, lint, `tsc --noEmit` all clean.
+
 ## INCIDENT: ran the Gemini free-tier quota dry mid-P3
 `gemini-3.5-flash` free tier is **20 requests/day per project**, resetting at midnight
 Pacific (confirmed against ai.google.dev/gemini-api/docs/rate-limits, not assumed). A new
@@ -644,3 +686,4 @@ on the one or two things that genuinely need a fresh one.
 | 2026-09-06 | P7 round 4 | User approved Play/Replay spacing and the claims resting state; the language-selector fix from round 3 addressed the wrong cause. Real problem was layout, not proximity: language sat as its own full-width row with dead space beside it, above the button row. Fixed by putting language and the action buttons on one `justify-between` row sharing the width, which required un-capping the `<form>` from `max-w-[68ch]` (only the textarea+label keep that measure now; this row uses the page's full width). Confirmed on a live screenshot before sending for review. User said this is meant to be the last round on this screen. | Wait for confirmation, then close P7 and propose P8 |
 | 2026-09-06 | P7 CLOSED / P8 (code + live) | P7 closed (user moved to proposing P8 after round 4). Built printCard.ts (pure bucketing function, fail-honest absent-fallback per section), PrintCard.tsx (hidden print:block, everything else print:hidden), a "Print action card" button. User's explicit call: always English regardless of targetLang, since the card is for a caseworker at a counter, not the person themselves — required zero extra translation logic since extraction's own fields are already English. Verified with both fixtures as asked: fixture 2 reused the real JSON captured live at P6 (zero new calls) as the fallback-path proof in the test suite; fixture 1 needed one fresh live call (no prior capture existed in this shape) — confirmed all three happy-path sections plus the Where-to-go absent-fallback, real data, screenshotted. 6 new tests, 117 total green, build/lint/tsc clean. | Wait for the user's own look at the printed output, then close P8 |
 | 2026-09-06 | P8 CLOSED / P9 (hostile test + audit panel) | User confirmed the print preview live: one clean page, readable in black and white, sensible content. P8 closed. New standing rule: push after every commit — user found P8 wasn't on GitHub and pushed it manually. P9: spent one live call on fixture 4 (the hostile-injection letter) per the user's explicit request for a direct yes/no on extraction-level success, not just "the gate held." Real result: injection did NOT succeed — the model reported the injected SYSTEM NOTE as a fact about the letter's contents ("the letter contains a text block telling an AI to say X"), never adopted it as true, and the final script never claims approval/no-deadline/no-action. Reported this to the user with exact quotes before touching anything else, as instructed. Built AuditPanel.tsx (F11) after the clean result: plain-English dropped-claim reasons via an exhaustive DropReason map, renders nothing when nothing was dropped. Self-verified with a stubbed nonzero-drop response (zero live calls) since no real fixture run this session had produced one. 117 tests still green, build/lint/tsc clean. | Report the audit panel and the injection-test result, get sign-off to close P9 |
+| 2026-09-06 | P9 CLOSED / P10 CLOSED | User did the human accessibility checklist (keyboard-only, 200% zoom, narrow width, error messages) and confirmed all good. I ran the machine half (logging/persistence, footer, no-advice language, server-side keys, rate limiting, build/lint/test) and found one real gap: basic per-IP rate limiting from Tech Design §9 had never been built, and the app was already live and unprotected. Built src/lib/rateLimit.ts (fixed-window, 5 req/60s per IP), wired into both routes as the first check before body parsing. Verified three ways: unit tests on the limiter itself, a new route-level test proving the 6th request from one IP gets a real 429, and a live curl run against the actual dev server (400×5 then 429, zero Gemini calls spent since the limiter fires before validation) confirming a second IP is unaffected. Fixed a latent bug in speak/route.test.ts where all tests implicitly shared one IP. 121 tests, build/lint/tsc clean, pushed immediately per the standing rule. | Build the deliberately-corrupted demo fixture for the Audit Panel, then propose P11 |

@@ -11,10 +11,15 @@ const { synthesizeSpeech } = await import("@/lib/elevenlabs");
 
 afterEach(() => vi.resetAllMocks());
 
-function req(body: unknown): Request {
+// Each call gets its own x-forwarded-for by default, since it's a fresh
+// simulated client — this file's own rate limit tests are the only ones that
+// deliberately reuse an IP.
+let nextTestIp = 0;
+function req(body: unknown, ip = `test-speak-ip-${nextTestIp++}`): Request {
   return new Request("http://localhost/api/speak", {
     method: "POST",
     body: JSON.stringify(body),
+    headers: { "x-forwarded-for": ip },
   });
 }
 
@@ -38,7 +43,11 @@ describe("POST /api/speak", () => {
   });
 
   it("rejects malformed JSON", async () => {
-    const badReq = new Request("http://localhost/api/speak", { method: "POST", body: "{not json" });
+    const badReq = new Request("http://localhost/api/speak", {
+      method: "POST",
+      body: "{not json",
+      headers: { "x-forwarded-for": `test-speak-ip-${nextTestIp++}` },
+    });
     const res = await POST(badReq);
     expect(res.status).toBe(400);
   });
@@ -72,5 +81,24 @@ describe("POST /api/speak", () => {
     const res = await POST(req({ script: distinctiveScript }));
     const body = await res.text();
     expect(body).not.toContain(distinctiveScript);
+  });
+
+  it("blocks a client that submits too many requests too quickly", async () => {
+    vi.mocked(synthesizeSpeech).mockResolvedValue(new Uint8Array([1, 2, 3]).buffer);
+    const ip = "test-speak-ip-rate-limited";
+
+    // The default limit is 5 requests per window (lib/rateLimit.ts) — the
+    // first 5 from the same simulated IP must succeed.
+    for (let i = 0; i < 5; i++) {
+      const res = await POST(req({ script: "hello" }, ip));
+      expect(res.status).toBe(200);
+    }
+
+    // The 6th, still inside the window, must be rejected before it ever
+    // reaches the provider.
+    const blocked = await POST(req({ script: "hello" }, ip));
+    expect(blocked.status).toBe(429);
+    const body = await blocked.json();
+    expect(body.error).toBe("rate_limited");
   });
 });

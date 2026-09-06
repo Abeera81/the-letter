@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { SpeakError, synthesizeSpeech } from "@/lib/elevenlabs";
+import { checkRateLimit, clientKey } from "@/lib/rateLimit";
 import { MAX_LETTER_CHARS } from "@/lib/schema";
 
 /**
@@ -27,6 +28,7 @@ const MESSAGES: Record<string, string> = {
   provider_unavailable: "The voice service did not answer. You can still read the explanation above. Try again in a moment.",
   quota_exceeded: "The voice service has reached its limit for now. You can still read the explanation above.",
   empty_audio: "No audio came back. You can still read the explanation above. Try again.",
+  rate_limited: "Too many voice requests too quickly. Wait a minute and try again.",
 };
 
 function fail(code: string, status: number) {
@@ -37,6 +39,10 @@ function fail(code: string, status: number) {
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
+  // Basic per-IP rate limit, before anything else: this route holds
+  // ELEVENLABS_API_KEY behind no auth. See lib/rateLimit.ts.
+  if (!checkRateLimit(clientKey(request))) return fail("rate_limited", 429);
+
   let body: unknown;
   try {
     body = await request.json();

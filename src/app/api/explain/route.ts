@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ExtractionError, extractClaims } from "@/lib/gemini";
 import { locateSpan } from "@/lib/locateSpan";
+import { checkRateLimit, clientKey } from "@/lib/rateLimit";
 import { runSpanGate } from "@/lib/spanGate";
 import { RenderError, renderExplanation } from "@/lib/render";
 import { ExplainRequestSchema, MAX_LETTER_CHARS, MIN_LETTER_CHARS } from "@/lib/schema";
@@ -33,6 +34,7 @@ const MESSAGES: Record<string, string> = {
   malformed_output: "The letter could not be read cleanly. Try again, or paste a bit more of the letter.",
   malformed_render: "The explanation could not be put into words cleanly. Try again.",
   nothing_verified: "None of what came back could be traced to your letter, so there is nothing safe to tell you. Try again, or check that you pasted the whole letter.",
+  rate_limited: "Too many letters submitted too quickly. Wait a minute and try again.",
 };
 
 function fail(code: string, status: number): NextResponse<ErrorBody> {
@@ -43,6 +45,10 @@ function fail(code: string, status: number): NextResponse<ErrorBody> {
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
+  // Basic per-IP rate limit, before anything else: this route holds
+  // GEMINI_API_KEY behind no auth. See lib/rateLimit.ts.
+  if (!checkRateLimit(clientKey(request))) return fail("rate_limited", 429);
+
   let body: unknown;
   try {
     body = await request.json();
