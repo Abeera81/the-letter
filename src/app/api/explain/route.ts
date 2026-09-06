@@ -26,6 +26,8 @@ type ErrorBody = { error: string; message: string };
 const MESSAGES: Record<string, string> = {
   invalid_request: `Paste between ${MIN_LETTER_CHARS} and ${MAX_LETTER_CHARS.toLocaleString("en-US")} characters of the letter, and choose a language.`,
   missing_api_key: "The server is not set up to read letters yet. The site owner needs to add an API key.",
+  auth_failed: "The server's key for reading letters was rejected. The site owner needs to check it.",
+  quota_exceeded: "The service that reads letters has reached its limit for now. Try again later.",
   provider_unavailable: "The service that reads letters did not answer. Wait a moment and try again.",
   malformed_output: "The letter could not be read cleanly. Try again, or paste a bit more of the letter.",
   empty_script: "The letter was read, but the explanation came back empty. Try again.",
@@ -78,7 +80,10 @@ export async function POST(request: Request): Promise<NextResponse> {
     });
   } catch (error) {
     if (error instanceof ExtractionError || error instanceof RenderError) {
-      return fail(error.code, error.code === "missing_api_key" ? 500 : 502);
+      // Both are configuration problems the site owner has to fix, not
+      // something a retry will resolve.
+      const isConfigProblem = error.code === "missing_api_key" || error.code === "auth_failed";
+      return fail(error.code, isConfigProblem ? 500 : 502);
     }
     // Never surface an unknown error's message: it could quote the request.
     return fail("provider_unavailable", 502);

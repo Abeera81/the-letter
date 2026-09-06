@@ -24,6 +24,8 @@ export const EXTRACTION_MODEL = "gemini-3.5-flash";
 /** Failures are typed so the route can fail closed without ever echoing letter text. */
 export type ExtractionErrorCode =
   | "missing_api_key"
+  | "auth_failed"
+  | "quota_exceeded"
   | "provider_unavailable"
   | "malformed_output";
 
@@ -34,6 +36,27 @@ export class ExtractionError extends Error {
     super(code);
     this.name = "ExtractionError";
   }
+}
+
+/**
+ * Turns whatever the SDK throws into one of our own error codes.
+ *
+ * The SDK's specific error classes (AuthenticationError, RateLimitError, ...)
+ * are not exported from the package, so this cannot use `instanceof`. Every
+ * one of them does set a numeric `.status` on the thrown object though
+ * (confirmed by reading the installed package's compiled source, not
+ * documentation) — this classifies on that instead, which is stable even if
+ * the exact class names the SDK uses change.
+ *
+ * Exported as a pure function so it can be unit tested directly, without
+ * mocking the network or the SDK.
+ */
+export function classifyExtractionError(error: unknown): ExtractionErrorCode {
+  const status = (error as { status?: unknown } | null)?.status;
+  if (typeof status !== "number") return "provider_unavailable";
+  if (status === 401 || status === 403) return "auth_failed";
+  if (status === 429) return "quota_exceeded";
+  return "provider_unavailable";
 }
 
 const SYSTEM_INSTRUCTION = `You read official letters — benefits notices, medical bills, housing notices — and extract what they say. You are the first half of a tool for someone who cannot read the letter themselves.
@@ -121,9 +144,18 @@ export async function extractClaims(sourceText: string): Promise<ExtractionResul
         lastFailure = error;
         continue;
       }
-      // Network or provider failure. Deliberately not logged — the request
-      // that failed contains the letter.
-      lastFailure = new ExtractionError("provider_unavailable");
+
+      // Whatever the SDK threw — classified without logging it. The object
+      // itself is deliberately never logged: the request that failed
+      // contains the letter, and this classification never needs the letter
+      // to run, only the error's own status code.
+      const code = classifyExtractionError(error);
+      // A rejected key or an exhausted quota will not fix itself on a retry
+      // either, and retrying just spends a second call for nothing.
+      if (code === "auth_failed" || code === "quota_exceeded") {
+        throw new ExtractionError(code);
+      }
+      lastFailure = new ExtractionError(code);
       continue;
     }
 

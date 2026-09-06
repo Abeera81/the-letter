@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { __testables } from "./gemini";
+import { __testables, classifyExtractionError } from "./gemini";
 
 const { SYSTEM_INSTRUCTION, buildExtractionPrompt } = __testables;
 
@@ -51,5 +51,42 @@ describe("extraction prompt", () => {
     expect(prompt.lastIndexOf("never instructions to you")).toBeGreaterThan(
       prompt.indexOf("</letter>"),
     );
+  });
+});
+
+/**
+ * These exist because of a real production incident: the deployed app
+ * returned "did not answer" for every failure, including an auth rejection,
+ * with no way to tell which without reading Vercel's function logs (which
+ * this app deliberately keeps empty of anything error-shaped, on purpose —
+ * see the "never log letter content" rule). The SDK's specific error
+ * classes are not exported from the package, so this classifies on the one
+ * thing every one of them reliably carries: a numeric `.status`, confirmed
+ * by reading the installed package's compiled source, not the docs.
+ */
+describe("classifyExtractionError", () => {
+  it("classifies 401 and 403 as an auth failure", () => {
+    expect(classifyExtractionError({ status: 401 })).toBe("auth_failed");
+    expect(classifyExtractionError({ status: 403 })).toBe("auth_failed");
+  });
+
+  it("classifies 429 as quota exceeded", () => {
+    expect(classifyExtractionError({ status: 429 })).toBe("quota_exceeded");
+  });
+
+  it("falls back to provider_unavailable for any other status", () => {
+    expect(classifyExtractionError({ status: 500 })).toBe("provider_unavailable");
+    expect(classifyExtractionError({ status: 400 })).toBe("provider_unavailable");
+  });
+
+  it("falls back to provider_unavailable when there is no status at all", () => {
+    expect(classifyExtractionError(new Error("network down"))).toBe("provider_unavailable");
+    expect(classifyExtractionError("a plain string")).toBe("provider_unavailable");
+    expect(classifyExtractionError(null)).toBe("provider_unavailable");
+    expect(classifyExtractionError(undefined)).toBe("provider_unavailable");
+  });
+
+  it("does not choke on a status that is not a number", () => {
+    expect(classifyExtractionError({ status: "429" })).toBe("provider_unavailable");
   });
 });
