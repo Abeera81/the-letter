@@ -12,6 +12,7 @@ import {
 import type { DroppedClaim } from "@/lib/spanGate";
 import AbsentPanel from "./AbsentPanel";
 import AudioControls from "./AudioControls";
+import PrintCard from "./PrintCard";
 import SourceHighlight from "./SourceHighlight";
 
 type Status = "idle" | "explaining" | "done" | "error";
@@ -93,7 +94,7 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
 
   return (
     <div>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="print:hidden">
         <div className="max-w-[68ch]">
           <label htmlFor={textareaId} className="block text-xl font-semibold">
             Paste your letter here
@@ -182,23 +183,37 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
       </p>
 
       {status === "explaining" && (
-        <p className="mt-8 max-w-[68ch] text-lg">Explaining your letter. This takes a few seconds.</p>
+        <p className="mt-8 max-w-[68ch] text-lg print:hidden">Explaining your letter. This takes a few seconds.</p>
       )}
 
       {status === "error" && (
         <p
           role="alert"
-          className="mt-8 max-w-[68ch] rounded-md border-2 border-focus bg-paper-raised p-4 text-lg"
+          className="mt-8 max-w-[68ch] rounded-md border-2 border-focus bg-paper-raised p-4 text-lg print:hidden"
         >
           {errorMessage}
         </p>
       )}
 
       {status === "done" && result && (
-        <section aria-labelledby="raw-heading" className="mt-12">
-          <h2 id="raw-heading" className="text-2xl font-semibold tracking-tight">
-            What your letter says
-          </h2>
+        <section aria-labelledby="raw-heading" className="mt-12 print:hidden">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <h2 id="raw-heading" className="text-2xl font-semibold tracking-tight">
+              What your letter says
+            </h2>
+            {/* PRD F10: a one-page summary for handing to a caseworker or
+                office worker at a counter — always English (see
+                printCard.ts), regardless of the language selected above.
+                PrintCard itself is the only thing print:hidden does not
+                cover, so it's the only thing that reaches paper. */}
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="min-h-[3rem] rounded-md border-2 border-accent px-5 py-2 text-base font-semibold text-accent"
+            >
+              Print action card
+            </button>
+          </div>
 
           {/* Zone 1: read once, top to bottom. Full width of its own —
               nothing shares a row with it. Line length stays comfortable
@@ -316,6 +331,14 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
             </div>
           </div>
         </section>
+      )}
+
+      {status === "done" && result && (
+        <PrintCard
+          documentType={result.documentType}
+          verified={result.verified}
+          absent={result.absent}
+        />
       )}
     </div>
   );

@@ -29,6 +29,7 @@ export const ABSENT_FIELDS = [
   "appeal_route",
   "amount",
 ] as const;
+export type AbsentField = (typeof ABSENT_FIELDS)[number];
 
 export const TARGET_LANGUAGES = ["en", "ur", "es"] as const;
 export type TargetLang = (typeof TARGET_LANGUAGES)[number];

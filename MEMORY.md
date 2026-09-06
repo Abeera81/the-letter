@@ -5,11 +5,12 @@ Durable project state. Update at the end of every session. The next session star
 ---
 
 ## Current status
-**Phase:** P7 code complete, self-verified (unit tests + a stubbed-fetch UI drive,
-zero live Gemini calls spent), awaiting the user's own look at the tap-and-highlight
-interaction before closing — their explicit requirement, same as every UI-facing phase.
-**Next action:** wait for user sign-off, then close P7 and propose P8 (printable action
-card).
+**Phase:** P7 CLOSED (the user moved straight to proposing P8, taken as approval after
+four rounds of visual/layout fixes). P8 (printable action card) code complete and
+live-verified on both fixtures; awaiting the user's own look at the printed output
+before closing — their explicit requirement.
+**Next action:** wait for user sign-off, then close P8. Per the user's own stated plan,
+next is the hostile-letter / prompt-injection fixture test.
 **Deadline:** 2026-09-07 06:59 UTC (11:59 AM PKT)
 
 ## Decisions locked (do not relitigate)
@@ -509,6 +510,59 @@ review — they said this is meant to be the last round on this screen. Once the
 confirm, next up per their own stated plan: P8 (printable action card), then the
 hostile-letter/injection-fixture test.
 
+## P8 build notes: printable action card
+PRD F10: one page, "what happened, deadline, what to bring, where to go." Zero new
+Gemini calls — the card is a pure re-presentation of data the app already has
+(`result.verified` claims, `result.absent`), bucketed by the existing `Claim.kind`
+enum: `what_happened`+`why`+`amount` → What happened, `deadline` → Deadline, `action` →
+What to bring, `contact` → Where to go.
+
+**Language, on the user's explicit instruction: always English**, never the currently
+selected target language. Their reasoning: the card's real use case per F10 is being
+handed to a caseworker or office worker at a counter, most likely an English speaker
+in a US benefits/clinic context — the on-screen explanation and audio already serve
+the person themselves in their own language. This turned out to require zero extra
+code: `Claim.statement` and `AbsentItem.note` come from extraction (call #1, always
+English for this product's English-letter fixtures) and are never translated — only
+`render.ts`'s script and `AbsentPanel`'s `absentLines` are — so the print card just
+uses those fields directly regardless of `targetLang`.
+
+**Fail-honest empty buckets, not silent or fabricated:** `buildPrintCard`
+(`src/lib/printCard.ts`, pure function, no rendering) checks a per-section list of
+`ABSENT_FIELDS` when its claim bucket is empty, and prints that absence note instead
+(e.g., no `contact` claims + `phone`/`contact_name` flagged absent → "Where to go"
+shows "The letter does not provide a phone number" etc.). If a bucket is empty AND
+there's no matching absent field (true for "What to bring" — `ABSENT_FIELDS` has
+nothing corresponding to missing action steps), the section is left off the card
+entirely rather than padded with an unrelated note or a fabricated "nothing needed."
+
+**Mechanism, no new dependencies:** `PrintCard.tsx` stays mounted in the DOM,
+`hidden print:block`; every other on-screen section (the pre-submit form, the whole
+results view, and page.tsx's hero/footer copy) got `print:hidden`. A "Print action
+card" button just calls `window.print()` — the browser's native dialog gives "one
+clean page" and doubles as free PDF export, so no PDF library needed two days from
+deadline.
+
+**Verified with fixtures 1 and 2, as the user asked, without over-spending quota:**
+- Fixture 2: reused the exact real JSON response captured live during P6 (RESOLVED
+  entry above) — zero new calls. Its real extraction has `amount`/`deadline`/`action`×2
+  claims and NO `contact` claim, with `phone`+`contact_name` flagged absent — this
+  became the test in `printCard.test.ts` that proves the fallback fires on genuine
+  model output, not a constructed case, word-for-word matching the live capture.
+- Fixture 1: no prior captured JSON existed in this exact shape, so this justified one
+  fresh live call (budget rule is "spend when genuinely needed," not "never spend").
+  Real result: 6 claims (what_happened, why, deadline×2, action×2), absent =
+  phone/contact_name/amount. Card came back with all three "happy path" sections
+  populated correctly and "Where to go" correctly falling back to the absent notes —
+  confirmed by reading the live-rendered `PrintCard` DOM directly (not the raw JSON),
+  and screenshotted.
+- 6 new unit tests (bucketing, why/amount folding into What happened, absent-fallback,
+  no-fallback-available omission, fully-empty omission, the real fixture-2
+  reproduction) — 117 tests total, all green. Build/lint/`tsc --noEmit` clean.
+
+**Not yet done:** the user has not looked at the actual printed/print-preview output
+themselves — they explicitly want to before this closes.
+
 ## INCIDENT: ran the Gemini free-tier quota dry mid-P3
 `gemini-3.5-flash` free tier is **20 requests/day per project**, resetting at midnight
 Pacific (confirmed against ai.google.dev/gemini-api/docs/rate-limits, not assumed). A new
@@ -541,3 +595,4 @@ on the one or two things that genuinely need a fresh one.
 | 2026-09-06 | P7 round 2 | User's first-look feedback: highlight required manual scrolling (layout never caught up to Tech Design's two-zone spec), and asked whether the disabled-claim path had genuinely fired or just never been tested against a real case. Built the two-column sticky/scrollable layout per §7. Found and fixed a real Chromium bug via direct reproduction: smooth-scrolling a position:sticky element's own overflow box silently no-ops; switched to instant scroll everywhere in this feature. Verified the mobile fallback path by forcing the real DOM into the mobile CSS shape rather than asserting it untested. Answered the disabled-claim question directly: fixture 1 is genuinely 6/6 locatable (a fact about that fixture, not a dead code path), and pointed to the existing synthetic unlocatable-claim proof already built into the verification harness, per the user's own instruction not to go hunting fixture 1 for a case that doesn't exist. 111 tests still green, build/lint/tsc clean. | Wait for the user's own look, then close P7 |
 | 2026-09-06 | P7 round 3 | User diagnosed a real structural problem precisely: the two columns still paired read-once explanation with tappable claims, recreating the scrolling problem one level up. Restructured to three zones (script+audio full-width, absent panel full-width, claims/letter paired columns) plus a real visual pass grounded in Tech Design §7 — differentiated card treatments by content type, real type hierarchy, no second typeface (deliberate call, agreed), debug JSON collapsed. Three deliberate, restrained uses of the one accent color: active claim + Play button only, a tinted identity for the absent panel, a solid (not bordered) highlight fill. Sent screenshots for review. Then three more targeted fixes from live testing: Play/Slow-replay had zero horizontal gap at sm+ (root cause: sibling inline-block buttons, no flex wrapper — real bug, not a style nit); language selector felt grouped with playback controls despite already being correctly positioned (verified live before touching anything; fixed with asymmetric spacing, not a DOM move); inactive claims had no resting affordance, now a quiet bordered card distinct from both the page background and the active teal fill. Build/lint/tsc/111 tests clean throughout. | Wait for the user's live look, then close P7 and move to P8 |
 | 2026-09-06 | P7 round 4 | User approved Play/Replay spacing and the claims resting state; the language-selector fix from round 3 addressed the wrong cause. Real problem was layout, not proximity: language sat as its own full-width row with dead space beside it, above the button row. Fixed by putting language and the action buttons on one `justify-between` row sharing the width, which required un-capping the `<form>` from `max-w-[68ch]` (only the textarea+label keep that measure now; this row uses the page's full width). Confirmed on a live screenshot before sending for review. User said this is meant to be the last round on this screen. | Wait for confirmation, then close P7 and propose P8 |
+| 2026-09-06 | P7 CLOSED / P8 (code + live) | P7 closed (user moved to proposing P8 after round 4). Built printCard.ts (pure bucketing function, fail-honest absent-fallback per section), PrintCard.tsx (hidden print:block, everything else print:hidden), a "Print action card" button. User's explicit call: always English regardless of targetLang, since the card is for a caseworker at a counter, not the person themselves — required zero extra translation logic since extraction's own fields are already English. Verified with both fixtures as asked: fixture 2 reused the real JSON captured live at P6 (zero new calls) as the fallback-path proof in the test suite; fixture 1 needed one fresh live call (no prior capture existed in this shape) — confirmed all three happy-path sections plus the Where-to-go absent-fallback, real data, screenshotted. 6 new tests, 117 total green, build/lint/tsc clean. | Wait for the user's own look at the printed output, then close P8 |

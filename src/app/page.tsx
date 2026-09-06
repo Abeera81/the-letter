@@ -15,8 +15,10 @@ export default function Home() {
   return (
     <main className="mx-auto max-w-5xl px-5 py-12 sm:py-16">
       {/* Prose stays a comfortable measure even though the page itself is
-          wide enough for the two-column claims/letter pairing below. */}
-      <div className="max-w-[68ch]">
+          wide enough for the two-column claims/letter pairing below.
+          print:hidden here and below: PrintCard (P8) is the only thing that
+          should reach paper when a result is on screen. */}
+      <div className="max-w-[68ch] print:hidden">
         <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">The Letter</h1>
 
         <p className="mt-5 text-xl">
@@ -30,13 +32,13 @@ export default function Home() {
         </p>
       </div>
 
-      <hr className="my-12 border-rule" />
+      <hr className="my-12 border-rule print:hidden" />
 
       <LetterInput exampleLetter={loadExampleLetter()} />
 
-      <hr className="my-12 border-rule" />
+      <hr className="my-12 border-rule print:hidden" />
 
-      <div className="max-w-[68ch]">
+      <div className="max-w-[68ch] print:hidden">
         <h2 className="text-xl font-semibold">Nothing you paste is kept</h2>
         <p className="mt-3 text-ink-soft">
           There are no accounts and no database. Your letter stays in memory only
