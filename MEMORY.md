@@ -7,15 +7,17 @@ Durable project state. Update at the end of every session. The next session star
 ## Current status
 **Phase:** P10 CLOSED. Post-P10 visual polish pass shipped and **approved by the user —
 this is the final UI state.** Nothing further on the UI unless P11 recording exposes a
-real problem.
-**Next action:** **P11** — demo video, README expansion, DEV post. See the P11 plan
-below. Suggested sequencing still stands: record the video first (needs the user
-hands-on), draft the DEV post in parallel, README last.
+real problem. **P11 in progress: the DEV post is written and complete except the demo
+video embed** (`docs/DEV-POST-DRAFT.md`, ~1,960 prose words, all three screenshots and
+both citations in and verified 200).
+**Next action:** **the demo video — the user is recording it themselves.** Then the
+README expansion (repo/demo URLs, credits section: "none borrowed" still needs a final
+check, plus a post-deadline-commit note if any commit lands late). Drop the recorded
+video into the one remaining `[DEMO VIDEO EMBED PLACEHOLDER]` in the post.
 **Deadline:** 2026-09-07 06:59 UTC (11:59 AM PKT)
-**Gemini quota note:** hit the 20/day project cap again today (2026-09-06) partway
-through demo-fixture testing — the shared key is used by both local dev and the
-Vercel deployment, and the user's own P10 manual testing likely used some of today's
-budget too. Resets at midnight Pacific.
+**Gemini quota note:** the 20/day project cap is shared by local dev and the Vercel
+deployment, and resets at midnight Pacific. It was **healthy** on the evening of
+2026-09-06 — 6 live calls spent on screenshot capture, all 200. Budget it anyway.
 **Standing instruction (2026-09-06): push to origin after every commit, not just when
 asked.** The user pushed P8 manually after finding it wasn't on GitHub and said not to
 let this happen again — treat "commit" and "push" as one action from here on.
@@ -807,6 +809,28 @@ shipped `runSpanGate()` and `locateSpan()`, verified output: 6 kept, 1 dropped w
 start from that payload, not from scratch. But do not sink more time into replay
 plumbing unless a demo retake actually requires it.
 
+### SOLVED (2026-09-06 evening): the approach that actually works
+Both failures above share one cause — they tried to intercept from *inside* the page
+(console patch) or *outside* the browser (proxy). The reliable answer is Playwright's
+`page.route()`, which intercepts in the browser's own network layer:
+
+```js
+// Immune to Turbopack hot reload, needs no proxy, and no request ever
+// leaves for Gemini. Used against the LIVE Vercel URL, not localhost.
+await page.route('**/api/explain', r =>
+  r.fulfill({ status: 200, contentType: 'application/json', body: payload }));
+await page.route('**/api/speak', r =>
+  r.fulfill({ status: 200, contentType: 'audio/wav', body: minimalWav }));
+```
+
+This produced `docs/images/03-audit-panel-drop.png` with **zero** live calls. Setup:
+Playwright's own cached Chromium was version-mismatched, so launch with
+`chromium.launch({ channel: 'chrome' })` to use system Chrome. Install Playwright into
+a temp dir outside the repo so `package.json` stays clean. Note `--reporter=basic` is
+not valid in this Vitest version. **Caveat:** this drives a headless browser, so it
+does not help the user check something by hand — it is for automated capture only,
+which is exactly why it succeeded where the proxy failed.
+
 ## P11 plan (proposed to the user, awaiting approval)
 Per Tech Design §10 and `docs/SUBMISSION-PLAN.md`, three deliverables:
 
@@ -862,3 +886,4 @@ review, README last since it's the smallest lift.
 | 2026-09-06 | Demo prep: Audit Panel drop | Tried the deterministic short-evidence fixture (option 1) first as agreed; hit the Gemini 20/day quota wall mid-attempt before getting a clean read. Fell back to the pre-agreed plan: replayed the real P2 "ninety→thirty" regression case as part of a realistic 6-claim set, run through the actual unmodified runSpanGate() function (real Node execution, not mocked) — confirmed 5 kept, 1 dropped with numeric_mismatch. Replayed that exact real output through the live browser UI and confirmed the Audit Panel renders it correctly; screenshotted. Saved a reproducible browser-console recipe in scratchpad for the actual video recording. No code changes (verification only). | Propose the full P11 plan |
 | 2026-09-06 | Visual polish pass (396865f, d3b0b33) | User supplied a UI reference image and named exactly three things to take: calm/spacious/soft-card direction, the right-side trust panel, language-pill styling — explicitly NOT a redesign. Built TrustPanel.tsx (real copy describing the real Span Gate architecture, beside the input where the trust decision is actually made), a slim no-nav wordmark header (user's choice), pill-styled language radios with the input sr-only so arrow keys and screen-reader state survive, a non-focusable "coming soon" photo placeholder rather than a disabled button, and a faint --shadow-card token with consistent radii. Trust panel unmounts on result so the three-zone results layout is untouched. Declined as scope violations, per the user's own instruction: History, Settings, the describe-your-letter chat box, working OCR. build/lint/tsc/121 tests clean. User approved the input screen live. | Attempt the results-view replay |
 | 2026-09-06 | Replay tooling abandoned; UI final | Tried twice to build an offline results-view replay so the polished layout could be re-checked without Gemini quota: a DevTools console fetch patch (died on hot reload — silently, falling back to a real quota-spending call) and then a local :3100 proxy intercepting both API routes (verified working end to end by me, but did not work on the user's machine). User called it off as not worth more time and closed the UI on the strength of their own earlier same-day live confirmations with real data. Killed the proxy, cleaned the tree, kept replay-payload.json (real gate-computed claims/offsets/drop) in the session files dir for a possible P11 demo retake. No repo changes. | **P11: demo video, README, DEV post** |
+| 2026-09-06 | P11: DEV post + screenshots (b268ef2, 09a7974, 8bffa65, 77819c1) | Wrote the full DEV submission post to docs/DEV-POST-DRAFT.md in the user's own voice, reverse-engineered from five of their and a friend's DEV posts (TL;DR blockquote, personal hook, finding table, WHY-commented code, a named `I was wrong'' section, `Limitations, plainly'', argued Prize Categories close). All four required true stories in: the ninety-to-thirty overlap bug, the live injection test with its honest gate-proves-real-not-true caveat, the native Urdu review and hand-translated footer, and the corrupted-demo-claim disclosure. Trimmed 2145 -> 1963 prose words, then cut `What it refuses to do'' at the user's call, rescuing its two load-bearing lines into What I Built and Code. Captured all three screenshots with Playwright driving Chrome (shots 1 and 2 live; shot 3 offline via page.route() browser-level stubbing, which is immune to the hot-reload failure that killed the earlier console patch — see the note above). Shot 3's dropped claim is genuine: a real captured extraction plus the ninety-to-thirty corruption run through the real unmodified runSpanGate() (6 verified, 1 numeric_mismatch), disclosed in the caption and in Limitations. Fixed two factual errors found while verifying rather than shipping them: the 58 billion NCOA figure is what OLDER ADULTS leave unclaimed, not the US total; and the suite is 121 tests across 12 files, not 11. Urban Institute is Cloudflare-blocked even to a real browser, so the SNAP participation-gap figures are cited via a Center Square report carrying both numbers verbatim. Verified all 3 images and all 3 links return 200. 6 live Gemini calls spent; quota was healthy throughout. | **Demo video (user is recording it), then README** |
