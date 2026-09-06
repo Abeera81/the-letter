@@ -5,15 +5,14 @@ Durable project state. Update at the end of every session. The next session star
 ---
 
 ## Current status
-**Phase:** P5 in progress — code complete, blocked on the user's native Urdu review.
-Language selector, RTL transcript rendering, and per-language fixed footer all built,
-tested, and confirmed working via one live run (before the local Gemini key exhausted
-its daily quota again). NOT closing P5 until the user — a native Urdu speaker —
-explicitly signs off on wording, register, number/date phrasing, and the footer
-translation. This is an explicit instruction, not a formality.
-**Next action:** wait for the user's Urdu review (sent: real audio + exact text +
-specific questions, see "AWAITING" below). Separately open: the P3 fixture-2
-same-model confirmation.
+**Phase:** P5 CLOSED. Native Urdu speaker (the user) signed off explicitly: translation
+natural, no awkward phrasing, footer reads correctly, fair-hearing line does not read
+as advice. This was a real review, not a rubber stamp — see "RESOLVED: native Urdu
+sign-off" below for what was actually checked.
+**Next action:** P6 — the "letter does not say" panel (PRD F8). Also folds in closing
+the long-open P3 item: fixture 2's `explanation` field has never been confirmed live on
+the shipped model, and P6's own gate (fixture 2 surfaces the missing explanation) is
+the same question, so it gets answered as part of this phase rather than separately.
 **Deadline:** 2026-09-07 06:59 UTC (11:59 AM PKT)
 
 ## Decisions locked (do not relitigate)
@@ -224,7 +223,7 @@ value, not just the label: "Read this letter to me" → "Explain this letter",
 letter has been explained." This also better matches the product's own framing — the
 fixed footer already says "This explains the letter."
 
-## AWAITING: native Urdu sign-off before P5 can close
+## RESOLVED: native Urdu sign-off (P5 closed)
 Sent the user real audio (Eric, via the actual /api/speak route) plus the exact Urdu
 text for fixture 1, with five specific things to check: wording naturalness/register,
 the hand-translated footer specifically, number/date phrasing ("تیس ستمبر دو ہزار
@@ -234,10 +233,13 @@ computed CSS direction rtl — but appearance is the user's call, not something 
 verify myself). Also flagged: the model returned Urdu as one unbroken paragraph, unlike
 English's short-paragraph structure — asked whether that reads worse for this language.
 
-**Do not mark P5 done without an explicit yes from the user on this.** Verifying English
-render quality was reasonable to do without a native check; Urdu explicitly is not that
-kind of gate, per the user's own words: "the one quality bar in the whole project I can
-judge better than either of us could otherwise."
+**User's sign-off, verbatim substance:** overall translation understandable and natural,
+no awkward phrasing; the hand-translated footer specifically confirmed natural and
+correct; no issues with wording, register, or the fair-hearing line reading as advice.
+The one-unbroken-paragraph question was not called out as a problem. Urdu is closed on
+a real native-speaker review, not a rubber stamp — worth remembering as the standard
+the rest of this project's language quality should be held to, including Spanish, which
+has never had an equivalent check by anyone.
 
 ## Real bug found and fixed at P5: the fixed footer never localized
 The mandatory footer ("This explains the letter. It is not advice about your case.")
@@ -311,3 +313,4 @@ on the one or two things that genuinely need a fresh one.
 | 2026-09-05 | P1 gate closed | Fixture 1 ran live, first attempt, no retry: 6 claims, 3 absent items. All 6 evidence fields were byte-exact substrings of the raw fixture, line breaks preserved. No eligibility or advice language in any statement. Absent list correctly omitted deadline/reason/appeal_route, all of which the letter does contain. | P2 Span Gate |
 | 2026-09-06 | P4 CLOSED | Eric voice chosen and wired in (7 auditions, 2 rounds, see VOICE CHOSEN above). Production outage on first deploy diagnosed and fixed with classifyExtractionError (auth_failed/quota_exceeded, 10 tests, zero API calls). Second real bug found and fixed: Safari autoplay rejection was mislabeled as a network failure — split load/play into separate try/catches, added a "blocked" status matching the reduced-motion UX pattern. Confirmed live on real iOS Safari: blocked-state Play button, real audio, slow replay, all working. Submit button renamed ("Explain this letter") to stop overselling audio it doesn't directly control. 81 tests green. | Propose P5 |
 | 2026-09-06 | P5 (code) | Language selector (self-named: English/اردو/Español), RTL transcript rendering (dir/lang scoped to just the script panel, confirmed live: dir="rtl" lang="ur" computed rtl), per-language FIXED_FOOTERS. Found and fixed a real bug: footer was hardcoded English regardless of targetLang. Live-verified body text via one Gemini call before the local key's daily quota ran out again; footer fix verified deterministically with a mocked SDK (5 new tests) rather than spending another live call. 86 tests green. Sent real audio + text to the user for native Urdu review — not closing until they sign off. | Wait for Urdu review, then close P5 |
+| 2026-09-06 | P5 CLOSED | Native Urdu speaker (the user) reviewed real output and signed off explicitly: natural translation, correct register, footer reads correctly, fair-hearing line not read as advice. Real quality gate, not a formality. | P6 |
