@@ -16,6 +16,8 @@ Somebody is standing in a kitchen holding that. They don't know whether their fo
 
 **The Letter** takes that letter and says, out loud: your case was closed, here's why they say it happened, here's the date, here's what they're asking you to bring. Then it tells you what the letter *doesn't* say — no phone number, no named contact — which is the list of things to ask about when you call.
 
+What it will never say is that you qualify for anything, or that you should appeal, or that you shouldn't. And it **fails closed**: if verification leaves nothing behind you get a clear error, never a half-explained benefits letter.
+
 `[SCREENSHOT PLACEHOLDER — the input screen with the trust panel]`
 *The whole product before you paste anything: one box, three promises, and no account to make.*
 
@@ -171,12 +173,6 @@ A test asserts the model is never even *asked* for this line, in any language. T
 
 ---
 
-## What it refuses to do
-
-This isn't caution bolted on afterwards; it's the design. It never states or implies you qualify for anything, never recommends appealing or not appealing, and never introduces a date, amount, name or phone number that isn't in your letter. It **fails closed**: if verification leaves nothing behind you get a clear error, never a half-explained benefits letter. Nothing you paste is stored, logged or written to disk — no accounts, no database, which is also why the app has no navigation at all.
-
----
-
 ## Limitations, plainly
 
 - **The gate verifies a quote exists. It does not verify the interpretation of that quote is right.** That's a real ceiling, not a caveat.
@@ -192,7 +188,7 @@ This isn't caution bolted on afterwards; it's the design. It never states or imp
 
 `[REPO EMBED PLACEHOLDER — {% embed <repo url> %}]`
 
-Repository created **5 September 2026**, inside the challenge window. Next 16, React 19, TypeScript, Tailwind 4, Zod 4. No database, no auth, no persistence. **121 tests across 11 files.** No borrowed open-source code beyond the framework dependencies.
+Repository created **5 September 2026**, inside the challenge window. Next 16, React 19, TypeScript, Tailwind 4, Zod 4. Nothing you paste is stored, logged or written to disk — no database, no auth, no persistence, which is also why the app has no navigation at all. **121 tests across 11 files.** No borrowed open-source code beyond the framework dependencies.
 
 Worth opening: `src/lib/spanGate.ts` (the gate, ~140 lines, no model in it), `src/lib/render.ts` (call #2, structurally blind to the letter), `src/lib/spanGate.test.ts` (the corruption regressions above), `src/lib/render.test.ts` (the sentinel test), and `fixtures/04-hostile-injection.txt`.
 
