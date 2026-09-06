@@ -12,6 +12,7 @@ import {
 import type { DroppedClaim } from "@/lib/spanGate";
 import AbsentPanel from "./AbsentPanel";
 import AudioControls from "./AudioControls";
+import AuditPanel from "./AuditPanel";
 import PrintCard from "./PrintCard";
 import SourceHighlight from "./SourceHighlight";
 
@@ -294,6 +295,8 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
                   );
                 })}
               </div>
+
+              <AuditPanel dropped={result.dropped} />
 
               <details className="mt-8">
                 <summary className="cursor-pointer text-sm text-ink-soft">Technical details</summary>
