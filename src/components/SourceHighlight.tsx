@@ -75,7 +75,7 @@ export default function SourceHighlight({
     <div
       dir="ltr"
       lang="en"
-      className="mt-4 whitespace-pre-wrap rounded-md border-2 border-rule bg-paper-raised p-5 text-lg leading-relaxed"
+      className="mt-4 whitespace-pre-wrap rounded-2xl border border-rule bg-paper-raised p-5 text-lg leading-relaxed shadow-card"
     >
       {span ? (
         <>

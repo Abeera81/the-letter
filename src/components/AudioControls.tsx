@@ -157,7 +157,7 @@ export default function AudioControls({ script }: { script: string }) {
           <button
             type="button"
             onClick={stop}
-            className="min-h-[3.5rem] w-full rounded-md bg-accent px-6 py-4 text-xl font-semibold text-white sm:w-auto"
+            className="min-h-[3.5rem] w-full rounded-full bg-accent px-8 py-4 text-xl font-semibold text-white shadow-card sm:w-auto"
           >
             Stop
           </button>
@@ -166,7 +166,7 @@ export default function AudioControls({ script }: { script: string }) {
             type="button"
             onClick={play}
             disabled={status === "loading" || status === "error"}
-            className="min-h-[3.5rem] w-full rounded-md bg-accent px-6 py-4 text-xl font-semibold text-white disabled:opacity-60 sm:w-auto"
+            className="min-h-[3.5rem] w-full rounded-full bg-accent px-8 py-4 text-xl font-semibold text-white shadow-card disabled:opacity-60 sm:w-auto"
           >
             {status === "loading" ? "Loading voice…" : "Play"}
           </button>
@@ -176,7 +176,7 @@ export default function AudioControls({ script }: { script: string }) {
           type="button"
           onClick={toggleSlow}
           aria-pressed={slow}
-          className="min-h-[3rem] rounded-md border-2 border-accent px-5 py-3 text-lg font-semibold text-accent"
+          className="min-h-[3rem] rounded-full border-2 border-accent px-5 py-3 text-lg font-semibold text-accent"
         >
           {slow ? "Normal speed" : "Slow replay"}
         </button>
@@ -196,7 +196,7 @@ export default function AudioControls({ script }: { script: string }) {
       )}
 
       {status === "error" && (
-        <p role="alert" className="mt-3 rounded-md border-2 border-focus bg-paper-raised p-4">
+        <p role="alert" className="mt-3 rounded-xl border-2 border-focus bg-paper-raised p-4">
           {errorMessage}
         </p>
       )}

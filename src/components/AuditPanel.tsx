@@ -32,7 +32,7 @@ export default function AuditPanel({ dropped }: { dropped: DroppedClaim[] }) {
       </p>
       <ul className="mt-4 flex flex-col gap-2">
         {dropped.map(({ claim, reason }) => (
-          <li key={claim.id} className="rounded-md border border-rule bg-paper-raised px-4 py-3">
+          <li key={claim.id} className="rounded-xl border border-rule bg-paper-raised px-4 py-3">
             <p>{claim.statement}</p>
             <p className="mt-1 text-sm text-ink-soft">Dropped because {REASON_TEXT[reason]}.</p>
           </li>

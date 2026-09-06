@@ -29,7 +29,7 @@ export default function AbsentPanel({
   const rtl = RTL_LANGUAGES.has(targetLang);
 
   return (
-    <section aria-labelledby="absent-heading" className="mt-10 rounded-lg bg-accent/[0.06] p-6">
+    <section aria-labelledby="absent-heading" className="mt-10 rounded-2xl bg-accent/[0.06] p-6 sm:p-8">
       <h3 id="absent-heading" className="text-xl font-semibold text-accent-strong">
         The letter does not say
       </h3>

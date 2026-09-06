@@ -39,7 +39,13 @@ const LANGUAGE_OPTIONS: Array<{ value: TargetLang; label: string }> = [
   { value: "es", label: "Español" },
 ];
 
-export default function LetterInput({ exampleLetter }: { exampleLetter: string }) {
+export default function LetterInput({
+  exampleLetter,
+  trustPanel,
+}: {
+  exampleLetter: string;
+  trustPanel?: React.ReactNode;
+}) {
   const textareaId = useId();
   const languageGroupId = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -95,13 +101,24 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
 
   return (
     <div>
-      <form onSubmit={handleSubmit} className="print:hidden">
-        <div className="max-w-[68ch]">
+      {/* The setup screen: what you do on the left, why you can trust it on
+          the right. The trust panel steps aside once a result exists — at
+          that point the promise has been kept and the result itself is the
+          only thing that should hold the page. */}
+      <div
+        className={
+          trustPanel && status !== "done"
+            ? "print:hidden lg:grid lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start lg:gap-12"
+            : "print:hidden"
+        }
+      >
+        <form onSubmit={handleSubmit} className="print:hidden">
+        <div>
           <label htmlFor={textareaId} className="block text-xl font-semibold">
             Paste your letter here
           </label>
           <p id={`${textareaId}-hint`} className="mt-2 text-ink-soft">
-            Type it or paste it. Nothing you paste is saved.
+            A benefits denial, a clinic bill, a housing notice. Nothing you paste is saved.
           </p>
 
           <textarea
@@ -113,16 +130,24 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
             maxLength={MAX_LETTER_CHARS}
             rows={12}
             spellCheck={false}
-            className="mt-4 block w-full rounded-md border-2 border-rule bg-paper-raised p-4 text-ink"
+            className="mt-4 block w-full rounded-2xl border-2 border-rule bg-paper-raised p-5 text-ink shadow-card"
           />
+
+          {/* Deliberately not a button. Photo input is stretch scope in the
+              PRD and is not built, and a control that looks pressable but
+              does nothing costs more than an absent feature. This is a
+              signpost, not an affordance: nothing here is focusable, so
+              keyboard users are never sent to a dead end either. */}
+          <p className="mt-4 rounded-xl border border-dashed border-rule px-5 py-4 text-base text-ink-soft">
+            <span className="font-semibold text-ink">Photo of a letter — coming soon.</span>{" "}
+            For now, type or paste the words above.
+          </p>
         </div>
 
         {/* One setup row, not two stacked: language on one side, the actions
             on the other, sharing the space instead of language sitting alone
-            above a wide gap. Not capped at 68ch like the textarea above —
-            this row wants the page's full width to lay the two sides out
-            side by side; it wraps to stacked only when it genuinely doesn't
-            fit. */}
+            above a wide gap. It wraps to stacked only when it genuinely
+            doesn't fit. */}
         <div className="mt-6 flex flex-wrap items-end justify-between gap-x-8 gap-y-6">
           <fieldset>
             <legend className="text-lg font-semibold">Language</legend>
@@ -133,8 +158,14 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
                   <label
                     key={option.value}
                     htmlFor={inputId}
-                    className="flex min-h-[3rem] cursor-pointer items-center gap-2 rounded-md border-2 border-rule bg-paper-raised px-4 py-2 has-[:checked]:border-accent has-[:checked]:bg-accent has-[:checked]:text-white"
+                    className="flex min-h-[3rem] cursor-pointer items-center rounded-full border-2 border-rule bg-paper-raised px-5 py-2 has-[:checked]:border-accent has-[:checked]:bg-accent has-[:checked]:text-white has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-[3px] has-[:focus-visible]:outline-focus"
                   >
+                    {/* The radio itself is visually hidden, not removed: it
+                        is still a real radio group, so arrow keys still move
+                        between languages and screen readers still announce
+                        the selected one. The label carries the focus ring on
+                        its behalf, so keyboard focus never becomes
+                        invisible. */}
                     <input
                       id={inputId}
                       type="radio"
@@ -142,7 +173,7 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
                       value={option.value}
                       checked={targetLang === option.value}
                       onChange={() => setTargetLang(option.value)}
-                      className="h-5 w-5"
+                      className="sr-only"
                     />
                     <span className="text-lg">{option.label}</span>
                   </label>
@@ -155,7 +186,7 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
             <button
               type="submit"
               disabled={tooShort || status === "explaining"}
-              className="min-h-[3rem] rounded-md bg-accent px-6 py-3 text-lg font-semibold text-white disabled:bg-ink-soft disabled:opacity-60"
+              className="min-h-[3rem] rounded-full bg-accent px-6 py-3 text-lg font-semibold text-white shadow-card disabled:bg-ink-soft disabled:opacity-60 disabled:shadow-none"
             >
               {status === "explaining" ? "Explaining your letter" : "Explain this letter"}
             </button>
@@ -163,7 +194,7 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
             <button
               type="button"
               onClick={useExample}
-              className="min-h-[3rem] rounded-md border-2 border-accent px-6 py-3 text-lg font-semibold text-accent"
+              className="min-h-[3rem] rounded-full border-2 border-accent px-6 py-3 text-lg font-semibold text-accent"
             >
               Try an example letter
             </button>
@@ -171,11 +202,16 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
         </div>
 
         {tooShort && text.length > 0 && (
-          <p className="mt-3 max-w-[68ch] text-ink-soft">
+          <p className="mt-3 text-ink-soft">
             That is too short to explain. Paste at least {MIN_LETTER_CHARS} characters.
           </p>
         )}
-      </form>
+        </form>
+
+        {trustPanel && status !== "done" && (
+          <div className="mt-10 lg:mt-0">{trustPanel}</div>
+        )}
+      </div>
 
       {/* Status is announced, never only shown. No time limit, nothing auto-advances. */}
       <p aria-live="polite" className="sr-only">
@@ -190,7 +226,7 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
       {status === "error" && (
         <p
           role="alert"
-          className="mt-8 max-w-[68ch] rounded-md border-2 border-focus bg-paper-raised p-4 text-lg print:hidden"
+          className="mt-8 max-w-[68ch] rounded-xl border-2 border-focus bg-paper-raised p-4 text-lg print:hidden"
         >
           {errorMessage}
         </p>
@@ -210,7 +246,7 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
             <button
               type="button"
               onClick={() => window.print()}
-              className="min-h-[3rem] rounded-md border-2 border-accent px-5 py-2 text-base font-semibold text-accent"
+              className="min-h-[3rem] rounded-full border-2 border-accent px-5 py-2 text-base font-semibold text-accent"
             >
               Print action card
             </button>
@@ -287,7 +323,7 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
                       aria-pressed={selected}
                       disabled={!locatable}
                       onClick={() => setSelectedClaimId(selected ? null : claim.id)}
-                      className="min-h-[3rem] rounded-md border border-rule bg-paper-raised px-4 py-3 text-left text-base text-ink transition-colors hover:border-accent hover:bg-accent/5 disabled:cursor-not-allowed disabled:border-transparent disabled:bg-transparent disabled:text-ink-soft disabled:opacity-60 aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:font-semibold aria-pressed:text-white aria-pressed:hover:bg-accent"
+                      className="min-h-[3rem] rounded-xl border border-rule bg-paper-raised px-4 py-3 text-left text-base text-ink transition-colors hover:border-accent hover:bg-accent/5 disabled:cursor-not-allowed disabled:border-transparent disabled:bg-transparent disabled:text-ink-soft disabled:opacity-60 aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:font-semibold aria-pressed:text-white aria-pressed:hover:bg-accent"
                       title={locatable ? undefined : "The exact location of this claim in the letter could not be pinpointed."}
                     >
                       {claim.statement}
@@ -300,7 +336,7 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
 
               <details className="mt-8">
                 <summary className="cursor-pointer text-sm text-ink-soft">Technical details</summary>
-                <pre className="mt-3 overflow-x-auto rounded-md border border-rule bg-paper-raised p-4 text-sm">
+                <pre className="mt-3 overflow-x-auto rounded-xl border border-rule bg-paper-raised p-4 text-sm">
                   {JSON.stringify(
                     {
                       documentType: result.documentType,
