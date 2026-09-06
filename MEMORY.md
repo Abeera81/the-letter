@@ -28,6 +28,15 @@ still live. **README is DONE** (5776ef3).
 **Deadline check:** 2026-09-07 06:59 UTC. Everything is committed and pushed well
 inside the window; if any commit lands after it, fill the README's post-deadline
 placeholder.
+**House style (2026-09-07, user's call): NO EM DASHES in `docs/DEV-POST-DRAFT.md` or
+`README.md`.** Both are at zero (e85b955) and must stay there. When editing either
+file, use a colon when the clause expands on what precedes it, parentheses for a true
+aside, a full stop when the second half stands alone, and a comma when the join is
+already grammatical. Do not reintroduce one for rhythm. **`src/` was deliberately left
+alone** (95 em dashes there, several in user-visible UI strings like "Photo of a letter
+— coming soon." and "The Letter — Action Card"); changing those is a product change,
+not a copy edit, and was explicitly out of scope. Note this file (MEMORY.md) is also
+exempt.
 **Pre-publish checklist:** all items verified 2026-09-06 23:10 except the video and the
 post-deadline-commits line (N/A so far) — see `docs/SUBMISSION-PLAN.md`. Suite green at
 121 tests / 12 files; live URL and repo both 200 and the repo is public.
