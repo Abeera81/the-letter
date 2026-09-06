@@ -5,12 +5,12 @@ Durable project state. Update at the end of every session. The next session star
 ---
 
 ## Current status
-**Phase:** P10 CLOSED, plus a post-P10 visual polish pass (2026-09-06, commit
-396865f) applied from a UI reference image the user supplied. P11 not yet started.
-**Next action:** P11 (see "P11 plan" below) — demo video, README expansion, DEV post.
-Also outstanding: the user's own live look at the polished screen (I had no browser
-screenshot tooling this session, so the visual verification is HTML/CSS-level only —
-see the polish-pass entry below for exactly what was and was not checked).
+**Phase:** P10 CLOSED. Post-P10 visual polish pass shipped and **approved by the user —
+this is the final UI state.** Nothing further on the UI unless P11 recording exposes a
+real problem.
+**Next action:** **P11** — demo video, README expansion, DEV post. See the P11 plan
+below. Suggested sequencing still stands: record the video first (needs the user
+hands-on), draft the DEV post in parallel, README last.
 **Deadline:** 2026-09-07 06:59 UTC (11:59 AM PKT)
 **Gemini quota note:** hit the 20/day project cap again today (2026-09-06) partway
 through demo-fixture testing — the shared key is used by both local dev and the
@@ -767,9 +767,45 @@ chat box (a different product with no Span Gate behind it — unverified output)
 
 **Verified:** `tsc --noEmit`, lint, `npm run build`, 121 tests — all clean. Served the
 running dev server and confirmed the new markup and the generated CSS tokens are really
-there. **Not verified this session: any actual visual/screenshot check, 360px width,
-200% zoom, or keyboard walkthrough** — this session had no browser automation tooling
-available (earlier sessions did). Zero Gemini/ElevenLabs calls spent; none were needed.
+there. This session had no browser automation tooling (earlier sessions did), so no
+screenshot check from me. Zero Gemini/ElevenLabs calls spent; none were needed.
+
+**User's verdict: the input screen is APPROVED and this is the final UI state.** They
+confirmed the trust panel, language pills and photo-placeholder text live. For the
+results view they relied on their own earlier live confirmations from the same day
+(trust panel behaviour, three-zone layout, tap-to-highlight, language row, printable
+card — all previously passed with real data) and explicitly judged that sufficient
+rather than spend more time re-verifying styling-only changes. That call is recorded
+here so a later session does not reopen it.
+
+### Do not rebuild the replay tooling without a reason
+Attempted twice this session to give the user an offline results-view replay so they
+could re-check the polished layout without quota. Both attempts cost time and neither
+delivered; the user called it off, correctly.
+
+1. **DevTools console `window.fetch` patch** — the app does call a plain global
+   `fetch("/api/explain")` (confirmed by reading the compiled client chunk), so the
+   patch was sound in principle. It failed in practice because a console patch dies on
+   any hot reload, and I was creating/deleting a temp file inside `src/` while the user
+   was testing, which almost certainly triggered exactly that. It fails **silently** and
+   the fallback is a real, quota-spending API call — a bad property for a tool whose
+   whole purpose is avoiding live calls.
+2. **Local proxy on :3100** (`replay-server.js`, saved in the session files dir) —
+   intercepts `/api/explain` and `/api/speak` at the network layer and proxies
+   everything else to :3000, so no browser state can defeat it. I verified it working
+   end to end myself: explain → 6 verified / 1 dropped (`numeric_mismatch`), speak →
+   3,244-byte silent WAV, page + CSS + JS chunks all proxying, `?replay=clean` vs
+   `?replay=withDrop` both toggling. It then did not work on the user's machine ("Try
+   an example letter" did nothing) and was abandoned before the cause was found. Note
+   hot reload does not work through the proxy, which may be related.
+
+**Still genuinely valuable and worth keeping** (in the session files dir, not the repo):
+`replay-payload.json` plus the emitter, which contain the 6 fixture-1 claims with their
+kinds, real character offsets and the corrupted 7th claim — all computed by the actual
+shipped `runSpanGate()` and `locateSpan()`, verified output: 6 kept, 1 dropped with
+`numeric_mismatch`. If P11's demo recording needs the Audit Panel firing on camera,
+start from that payload, not from scratch. But do not sink more time into replay
+plumbing unless a demo retake actually requires it.
 
 ## P11 plan (proposed to the user, awaiting approval)
 Per Tech Design §10 and `docs/SUBMISSION-PLAN.md`, three deliverables:
@@ -824,3 +860,5 @@ review, README last since it's the smallest lift.
 | 2026-09-06 | P8 CLOSED / P9 (hostile test + audit panel) | User confirmed the print preview live: one clean page, readable in black and white, sensible content. P8 closed. New standing rule: push after every commit — user found P8 wasn't on GitHub and pushed it manually. P9: spent one live call on fixture 4 (the hostile-injection letter) per the user's explicit request for a direct yes/no on extraction-level success, not just "the gate held." Real result: injection did NOT succeed — the model reported the injected SYSTEM NOTE as a fact about the letter's contents ("the letter contains a text block telling an AI to say X"), never adopted it as true, and the final script never claims approval/no-deadline/no-action. Reported this to the user with exact quotes before touching anything else, as instructed. Built AuditPanel.tsx (F11) after the clean result: plain-English dropped-claim reasons via an exhaustive DropReason map, renders nothing when nothing was dropped. Self-verified with a stubbed nonzero-drop response (zero live calls) since no real fixture run this session had produced one. 117 tests still green, build/lint/tsc clean. | Report the audit panel and the injection-test result, get sign-off to close P9 |
 | 2026-09-06 | P9 CLOSED / P10 CLOSED | User did the human accessibility checklist (keyboard-only, 200% zoom, narrow width, error messages) and confirmed all good. I ran the machine half (logging/persistence, footer, no-advice language, server-side keys, rate limiting, build/lint/test) and found one real gap: basic per-IP rate limiting from Tech Design §9 had never been built, and the app was already live and unprotected. Built src/lib/rateLimit.ts (fixed-window, 5 req/60s per IP), wired into both routes as the first check before body parsing. Verified three ways: unit tests on the limiter itself, a new route-level test proving the 6th request from one IP gets a real 429, and a live curl run against the actual dev server (400×5 then 429, zero Gemini calls spent since the limiter fires before validation) confirming a second IP is unaffected. Fixed a latent bug in speak/route.test.ts where all tests implicitly shared one IP. 121 tests, build/lint/tsc clean, pushed immediately per the standing rule. | Build the deliberately-corrupted demo fixture for the Audit Panel, then propose P11 |
 | 2026-09-06 | Demo prep: Audit Panel drop | Tried the deterministic short-evidence fixture (option 1) first as agreed; hit the Gemini 20/day quota wall mid-attempt before getting a clean read. Fell back to the pre-agreed plan: replayed the real P2 "ninety→thirty" regression case as part of a realistic 6-claim set, run through the actual unmodified runSpanGate() function (real Node execution, not mocked) — confirmed 5 kept, 1 dropped with numeric_mismatch. Replayed that exact real output through the live browser UI and confirmed the Audit Panel renders it correctly; screenshotted. Saved a reproducible browser-console recipe in scratchpad for the actual video recording. No code changes (verification only). | Propose the full P11 plan |
+| 2026-09-06 | Visual polish pass (396865f, d3b0b33) | User supplied a UI reference image and named exactly three things to take: calm/spacious/soft-card direction, the right-side trust panel, language-pill styling — explicitly NOT a redesign. Built TrustPanel.tsx (real copy describing the real Span Gate architecture, beside the input where the trust decision is actually made), a slim no-nav wordmark header (user's choice), pill-styled language radios with the input sr-only so arrow keys and screen-reader state survive, a non-focusable "coming soon" photo placeholder rather than a disabled button, and a faint --shadow-card token with consistent radii. Trust panel unmounts on result so the three-zone results layout is untouched. Declined as scope violations, per the user's own instruction: History, Settings, the describe-your-letter chat box, working OCR. build/lint/tsc/121 tests clean. User approved the input screen live. | Attempt the results-view replay |
+| 2026-09-06 | Replay tooling abandoned; UI final | Tried twice to build an offline results-view replay so the polished layout could be re-checked without Gemini quota: a DevTools console fetch patch (died on hot reload — silently, falling back to a real quota-spending call) and then a local :3100 proxy intercepting both API routes (verified working end to end by me, but did not work on the user's machine). User called it off as not worth more time and closed the UI on the strength of their own earlier same-day live confirmations with real data. Killed the proxy, cleaned the tree, kept replay-payload.json (real gate-computed claims/offsets/drop) in the session files dir for a possible P11 demo retake. No repo changes. | **P11: demo video, README, DEV post** |
