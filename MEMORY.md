@@ -5,12 +5,15 @@ Durable project state. Update at the end of every session. The next session star
 ---
 
 ## Current status
-**Phase:** P4 CLOSED. Confirmed live on real iOS Safari: the "blocked" state appears
-correctly (Play button, no scary error), tapping Play starts real audio, slow replay
-works. Full pipeline verified end to end on the actual deploy, on the actual target
-device, by the user.
-**Next action:** propose P5 (language selector, Urdu first-class including RTL). Also
-still open, unrelated to P4: the P3 fixture-2 same-model confirmation below.
+**Phase:** P5 in progress — code complete, blocked on the user's native Urdu review.
+Language selector, RTL transcript rendering, and per-language fixed footer all built,
+tested, and confirmed working via one live run (before the local Gemini key exhausted
+its daily quota again). NOT closing P5 until the user — a native Urdu speaker —
+explicitly signs off on wording, register, number/date phrasing, and the footer
+translation. This is an explicit instruction, not a formality.
+**Next action:** wait for the user's Urdu review (sent: real audio + exact text +
+specific questions, see "AWAITING" below). Separately open: the P3 fixture-2
+same-model confirmation.
 **Deadline:** 2026-09-07 06:59 UTC (11:59 AM PKT)
 
 ## Decisions locked (do not relitigate)
@@ -221,6 +224,44 @@ value, not just the label: "Read this letter to me" → "Explain this letter",
 letter has been explained." This also better matches the product's own framing — the
 fixed footer already says "This explains the letter."
 
+## AWAITING: native Urdu sign-off before P5 can close
+Sent the user real audio (Eric, via the actual /api/speak route) plus the exact Urdu
+text for fixture 1, with five specific things to check: wording naturalness/register,
+the hand-translated footer specifically, number/date phrasing ("تیس ستمبر دو ہزار
+چھبیس" etc.), whether the fair-hearing sentence reads as neutral reporting rather than
+a recommendation, and RTL rendering (confirmed programmatically — dir="rtl", lang="ur",
+computed CSS direction rtl — but appearance is the user's call, not something I can
+verify myself). Also flagged: the model returned Urdu as one unbroken paragraph, unlike
+English's short-paragraph structure — asked whether that reads worse for this language.
+
+**Do not mark P5 done without an explicit yes from the user on this.** Verifying English
+render quality was reasonable to do without a native check; Urdu explicitly is not that
+kind of gate, per the user's own words: "the one quality bar in the whole project I can
+judge better than either of us could otherwise."
+
+## Real bug found and fixed at P5: the fixed footer never localized
+The mandatory footer ("This explains the letter. It is not advice about your case.")
+was a single hardcoded English string in render.ts, appended regardless of targetLang.
+Found by accident while pulling the live Urdu script for RTL verification — the footer
+came back in English inside an otherwise-Urdu result. This is a product-requirement
+gap (PRD 5.2 / AGENTS.md rule 4: this exact sentence must appear on every result), not
+a translation nicety.
+
+Fixed: `FIXED_FOOTERS: Record<TargetLang, string>`, one hand-translated line per
+language, still appended by code and never asked of the model — the whole reason a
+fixed footer exists is so it cannot drift, and letting a model translate it per-request
+would have reopened exactly that risk in a different language. Urdu translation is
+pending the native-speaker review above before it can be trusted the way the English
+original already is; Spanish has not been independently checked by anyone yet.
+
+**A real testing gotcha worth remembering:** verifying this required mocking
+`@google/genai`'s `GoogleGenAI` class so `renderScript()`'s footer-append logic could be
+tested without a live call. First attempt used `vi.fn().mockImplementation(() => ({...}))`
+as the mocked constructor — Vitest warns, correctly, that an arrow-function
+implementation cannot be used with `new`, and the mock silently failed instead of
+erroring clearly. Fixed by mocking with a real `class` instead. If mocking a
+constructor again, use a class from the start.
+
 ## OPEN: fixture-2 fix needs same-model live confirmation
 Do this FIRST next session, before anything else, budget permitting (see the API budget
 rule below — this is exactly the kind of "genuinely needs a fresh call" case it allows).
@@ -269,3 +310,4 @@ on the one or two things that genuinely need a fresh one.
 | 2026-09-05 | P4 (code) | elevenlabs.ts, /api/speak, AudioControls.tsx (auto-play, reduced-motion suppression, prominent Stop, slow replay). 16 new unit tests, mocked, zero credits spent. Fail-closed path live-verified with no voice configured. Hit a second quota wall: ElevenLabs account has 116 credits left, a real script needs ~1,200 — can't audition or verify end-to-end. 76 tests green. | User decides on ElevenLabs credits, see BLOCKED above |
 | 2026-09-05 | P1 gate closed | Fixture 1 ran live, first attempt, no retry: 6 claims, 3 absent items. All 6 evidence fields were byte-exact substrings of the raw fixture, line breaks preserved. No eligibility or advice language in any statement. Absent list correctly omitted deadline/reason/appeal_route, all of which the letter does contain. | P2 Span Gate |
 | 2026-09-06 | P4 CLOSED | Eric voice chosen and wired in (7 auditions, 2 rounds, see VOICE CHOSEN above). Production outage on first deploy diagnosed and fixed with classifyExtractionError (auth_failed/quota_exceeded, 10 tests, zero API calls). Second real bug found and fixed: Safari autoplay rejection was mislabeled as a network failure — split load/play into separate try/catches, added a "blocked" status matching the reduced-motion UX pattern. Confirmed live on real iOS Safari: blocked-state Play button, real audio, slow replay, all working. Submit button renamed ("Explain this letter") to stop overselling audio it doesn't directly control. 81 tests green. | Propose P5 |
+| 2026-09-06 | P5 (code) | Language selector (self-named: English/اردو/Español), RTL transcript rendering (dir/lang scoped to just the script panel, confirmed live: dir="rtl" lang="ur" computed rtl), per-language FIXED_FOOTERS. Found and fixed a real bug: footer was hardcoded English regardless of targetLang. Live-verified body text via one Gemini call before the local key's daily quota ran out again; footer fix verified deterministically with a mocked SDK (5 new tests) rather than spending another live call. 86 tests green. Sent real audio + text to the user for native Urdu review — not closing until they sign off. | Wait for Urdu review, then close P5 |

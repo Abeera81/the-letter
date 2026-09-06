@@ -22,8 +22,22 @@ import type { AbsentItem, Claim, TargetLang } from "./schema";
  * the failure mode this architecture exists to prevent.
  */
 
-/** Written by code, never by a model. Every result ends with exactly this line. */
-export const FIXED_FOOTER = "This explains the letter. It is not advice about your case.";
+/**
+ * Written by code, never by a model. Every result ends with exactly this
+ * line, in the language it was requested in.
+ *
+ * Translated once, here, by hand — not per-request by the rendering model.
+ * The whole point of a fixed footer is that it cannot be reworded, dropped,
+ * or drift between calls; letting a model translate it per-request would
+ * reopen exactly that risk in a different language. The Urdu translation is
+ * pending a native speaker's review (P5) before it can be trusted the way
+ * the English original already is.
+ */
+export const FIXED_FOOTERS: Record<TargetLang, string> = {
+  en: "This explains the letter. It is not advice about your case.",
+  ur: "یہ خط کی وضاحت کرتا ہے۔ یہ آپ کے معاملے کے بارے میں مشورہ نہیں ہے۔",
+  es: "Esto explica la carta. No es un consejo sobre su caso.",
+};
 
 export type RenderErrorCode = "missing_api_key" | "provider_unavailable" | "empty_script";
 
@@ -140,5 +154,5 @@ export async function renderScript(
   const body = interaction.output_text?.trim();
   if (!body) throw new RenderError("empty_script");
 
-  return `${body}\n\n${FIXED_FOOTER}`;
+  return `${body}\n\n${FIXED_FOOTERS[targetLang]}`;
 }

@@ -1,9 +1,24 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { FIXED_FOOTER, buildRenderRequest, __testables } from "./render";
+import { FIXED_FOOTERS, buildRenderRequest, renderScript, __testables } from "./render";
 import { runSpanGate } from "./spanGate";
 import type { AbsentItem, Claim } from "./schema";
+
+// Hoisted by Vitest to the top of the file regardless of where it's written,
+// so it lives here, at true module scope, to say so honestly.
+//
+// A real class, not vi.fn().mockImplementation(() => ({...})): render.ts
+// calls this with `new`, and an arrow-function mock implementation cannot
+// be used as a constructor — it silently produced a broken instance instead
+// of a clean type error, which is worth knowing if this pattern is reused.
+const mockCreate = vi.fn();
+vi.mock("@google/genai", () => {
+  class MockGoogleGenAI {
+    interactions = { create: mockCreate };
+  }
+  return { GoogleGenAI: MockGoogleGenAI };
+});
 
 /**
  * ══ THE PROMPT ISOLATION TEST ══
@@ -157,11 +172,44 @@ describe("rendering instructions", () => {
 });
 
 describe("the fixed footer", () => {
-  it("is the exact sentence the PRD specifies", () => {
-    expect(FIXED_FOOTER).toBe("This explains the letter. It is not advice about your case.");
+  it("is the exact English sentence the PRD specifies", () => {
+    expect(FIXED_FOOTERS.en).toBe("This explains the letter. It is not advice about your case.");
   });
 
-  it("is never asked of the model", () => {
-    expect(JSON.stringify(buildRenderRequest(claims, absent, "en"))).not.toContain(FIXED_FOOTER);
+  it("has one fixed translation per supported language", () => {
+    for (const lang of ["en", "ur", "es"] as const) {
+      expect(FIXED_FOOTERS[lang].length).toBeGreaterThan(0);
+    }
+  });
+
+  it("is never asked of the model, in any language", () => {
+    for (const lang of ["en", "ur", "es"] as const) {
+      const serialized = JSON.stringify(buildRenderRequest(claims, absent, lang));
+      expect(serialized).not.toContain(FIXED_FOOTERS[lang]);
+    }
+  });
+});
+
+describe("renderScript appends the right-language footer", () => {
+  // The model is mocked here on purpose. Which footer gets appended is pure
+  // TypeScript that runs after the model has already answered — it needs
+  // zero live calls to verify, and after a Gemini quota wall was hit mid
+  // verification of this exact fix, that is the point: this is exactly the
+  // kind of check the API budget rule in AGENTS.md asks for instead.
+  beforeEach(() => {
+    mockCreate.mockReset();
+    mockCreate.mockResolvedValue({ output_text: "The mocked spoken script." });
+    process.env.GEMINI_API_KEY = "test-key";
+  });
+
+  it.each(["en", "ur", "es"] as const)("appends the %s footer, not English by default", async (lang) => {
+    const script = await renderScript(claims, absent, lang);
+    expect(script.endsWith(FIXED_FOOTERS[lang])).toBe(true);
+  });
+
+  it("never appends a different language's footer", async () => {
+    const script = await renderScript(claims, absent, "ur");
+    expect(script).not.toContain(FIXED_FOOTERS.en);
+    expect(script).not.toContain(FIXED_FOOTERS.es);
   });
 });

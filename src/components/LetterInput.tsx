@@ -1,7 +1,13 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
-import { MAX_LETTER_CHARS, MIN_LETTER_CHARS, type AbsentItem, type Claim } from "@/lib/schema";
+import {
+  MAX_LETTER_CHARS,
+  MIN_LETTER_CHARS,
+  type AbsentItem,
+  type Claim,
+  type TargetLang,
+} from "@/lib/schema";
 import type { DroppedClaim } from "@/lib/spanGate";
 import AudioControls from "./AudioControls";
 
@@ -13,13 +19,29 @@ type ExplainResponse = {
   verified: Claim[];
   dropped: DroppedClaim[];
   absent: AbsentItem[];
-  meta: { droppedCount: number; extractedCount: number; targetLang: string };
+  meta: { droppedCount: number; extractedCount: number; targetLang: TargetLang };
 };
+
+/**
+ * Self-names, not English names: a Nastaliq "اردو" is how someone looking
+ * for their own language actually recognizes it, faster than reading
+ * "Urdu" in a script they may not read.
+ */
+const LANGUAGE_OPTIONS: Array<{ value: TargetLang; label: string }> = [
+  { value: "en", label: "English" },
+  { value: "ur", label: "اردو" },
+  { value: "es", label: "Español" },
+];
+
+/** PRD §8 / Tech Design §7: the transcript reads right-to-left only for Urdu. */
+const RTL_LANGUAGES: ReadonlySet<TargetLang> = new Set(["ur"]);
 
 export default function LetterInput({ exampleLetter }: { exampleLetter: string }) {
   const textareaId = useId();
+  const languageGroupId = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [text, setText] = useState("");
+  const [targetLang, setTargetLang] = useState<TargetLang>("en");
   const [status, setStatus] = useState<Status>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [result, setResult] = useState<ExplainResponse | null>(null);
@@ -36,8 +58,7 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
       const response = await fetch("/api/explain", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // P5 adds the language selector. Until then this path is English.
-        body: JSON.stringify({ text: text.trim(), targetLang: "en" }),
+        body: JSON.stringify({ text: text.trim(), targetLang }),
       });
       const body = await response.json();
 
@@ -84,6 +105,33 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
           spellCheck={false}
           className="mt-4 block w-full rounded-md border-2 border-rule bg-paper-raised p-4 text-ink"
         />
+
+        <fieldset className="mt-5">
+          <legend className="text-lg font-semibold">Language</legend>
+          <div className="mt-2 flex flex-wrap gap-3">
+            {LANGUAGE_OPTIONS.map((option) => {
+              const inputId = `${languageGroupId}-${option.value}`;
+              return (
+                <label
+                  key={option.value}
+                  htmlFor={inputId}
+                  className="flex min-h-[3rem] cursor-pointer items-center gap-2 rounded-md border-2 border-rule bg-paper-raised px-4 py-2 has-[:checked]:border-accent has-[:checked]:bg-accent has-[:checked]:text-white"
+                >
+                  <input
+                    id={inputId}
+                    type="radio"
+                    name="targetLang"
+                    value={option.value}
+                    checked={targetLang === option.value}
+                    onChange={() => setTargetLang(option.value)}
+                    className="h-5 w-5"
+                  />
+                  <span className="text-lg">{option.label}</span>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
 
         <div className="mt-5 flex flex-wrap gap-3">
           <button
@@ -138,8 +186,14 @@ export default function LetterInput({ exampleLetter }: { exampleLetter: string }
             <AudioControls key={result.script} script={result.script} />
           </div>
 
-          {/* The script is the product. Everything below it is the evidence. */}
-          <div className="mt-6 rounded-md border-2 border-accent bg-paper-raised p-5 text-xl leading-relaxed">
+          {/* The script is the product. Everything below it is the evidence.
+              RTL applies only to this transcript, not the surrounding page —
+              the pasted source letter and the rest of the UI stay LTR. */}
+          <div
+            dir={RTL_LANGUAGES.has(result.meta.targetLang) ? "rtl" : "ltr"}
+            lang={result.meta.targetLang}
+            className="mt-6 rounded-md border-2 border-accent bg-paper-raised p-5 text-xl leading-relaxed"
+          >
             {result.script.split(/\n/).map((line, i) =>
               line.trim() === "" ? null : (
                 <p key={i} className="mt-4 first:mt-0">
