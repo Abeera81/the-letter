@@ -147,34 +147,40 @@ export default function AudioControls({ script }: { script: string }) {
 
   return (
     <div>
-      {/* The single largest control on the page. */}
-      {status === "playing" ? (
-        <button
-          type="button"
-          onClick={stop}
-          className="min-h-[3.5rem] w-full rounded-md bg-accent px-6 py-4 text-xl font-semibold text-white sm:w-auto"
-        >
-          Stop
-        </button>
-      ) : (
-        <button
-          type="button"
-          onClick={play}
-          disabled={status === "loading" || status === "error"}
-          className="min-h-[3.5rem] w-full rounded-md bg-accent px-6 py-4 text-xl font-semibold text-white disabled:opacity-60 sm:w-auto"
-        >
-          {status === "loading" ? "Loading voice…" : "Play"}
-        </button>
-      )}
+      {/* flex + gap, not adjacent inline-block buttons with only a vertical
+          margin between them: at sm+, where Play/Stop shrinks to its own
+          width, the two buttons would otherwise sit on the same line with no
+          horizontal space between them at all — cramped and easy to mis-tap. */}
+      <div className="flex flex-wrap items-start gap-4">
+        {/* The single largest control on the page. */}
+        {status === "playing" ? (
+          <button
+            type="button"
+            onClick={stop}
+            className="min-h-[3.5rem] w-full rounded-md bg-accent px-6 py-4 text-xl font-semibold text-white sm:w-auto"
+          >
+            Stop
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={play}
+            disabled={status === "loading" || status === "error"}
+            className="min-h-[3.5rem] w-full rounded-md bg-accent px-6 py-4 text-xl font-semibold text-white disabled:opacity-60 sm:w-auto"
+          >
+            {status === "loading" ? "Loading voice…" : "Play"}
+          </button>
+        )}
 
-      <button
-        type="button"
-        onClick={toggleSlow}
-        aria-pressed={slow}
-        className="mt-3 min-h-[3rem] rounded-md border-2 border-accent px-5 py-3 text-lg font-semibold text-accent"
-      >
-        {slow ? "Normal speed" : "Slow replay"}
-      </button>
+        <button
+          type="button"
+          onClick={toggleSlow}
+          aria-pressed={slow}
+          className="min-h-[3rem] rounded-md border-2 border-accent px-5 py-3 text-lg font-semibold text-accent"
+        >
+          {slow ? "Normal speed" : "Slow replay"}
+        </button>
+      </div>
 
       <p aria-live="polite" className="sr-only">
         {status === "loading" ? "Loading voice." : ""}

@@ -29,14 +29,14 @@ export default function AbsentPanel({
   const rtl = RTL_LANGUAGES.has(targetLang);
 
   return (
-    <section aria-labelledby="absent-heading" className="mt-8">
-      <h3 id="absent-heading" className="text-lg font-semibold">
+    <section aria-labelledby="absent-heading" className="mt-10 rounded-lg bg-accent/[0.06] p-6">
+      <h3 id="absent-heading" className="text-xl font-semibold text-accent-strong">
         The letter does not say
       </h3>
       <ul
         dir={rtl ? "rtl" : "ltr"}
         lang={targetLang}
-        className="mt-3 list-disc space-y-2 rounded-md border-2 border-rule bg-paper-raised p-5 pl-10 text-lg"
+        className="mt-4 list-disc space-y-2 pl-6 text-lg"
       >
         {absentLines.map((line, i) => (
           <li key={absent[i]?.field ?? i}>{line}</li>

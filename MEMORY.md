@@ -434,6 +434,65 @@ they go hunting fixture 1 for a real one that doesn't exist.
 `npm run build`, lint, and `tsc --noEmit` all clean after these fixes. 111 tests still
 green (no test changes needed — this round was layout/interaction, not logic).
 
+## P7 round 3: three-zone restructure and a real visual-design pass
+User's next-look feedback after round 2's layout fix went further than layout: the two
+remaining columns still stacked two unrelated things (read-once explanation, tappable
+claims), recreating the scrolling problem one level up, and separately, the visual
+design read as generic/unpolished — the "doesn't look credible yet" complaint, not a
+structural one.
+
+**Structure, now three zones per the user's explicit spec:** (1) full-width — audio +
+script, read once top to bottom; (2) full-width — the absent-info panel, also
+read-once; (3) two columns, always paired — claims (left) / original letter (right),
+the only genuinely interactive pairing. `page.tsx`'s container widened to `max-w-5xl`
+so zone 3 has room, while prose (hero text, the script itself) stays constrained to
+`max-w-[68ch]` inside that wider shell so line length doesn't degrade.
+
+**Visual pass**, grounded in Tech Design §7's own anti-pattern list (which the user's
+complaint independently echoed almost verbatim): the palette was never the problem —
+one calm teal accent, no cream/terracotta — the flatness came from applying the exact
+same `rounded-md border-2 border-rule bg-paper-raised p-4` card to everything
+regardless of content type. Deliberately did NOT introduce a second/display typeface —
+explicit judgment call, agreed by the user, given real multilingual weight (Urdu
+Nastaliq, Spanish) already resting on one proven font stack this close to the deadline.
+Instead: real type-scale hierarchy (bigger H1, distinct H2/H3 weights), the script
+became a left-rule quote instead of a boxed card (authored text, not a UI panel), and
+the debug JSON moved behind a collapsed `<details>` disclosure instead of sitting as a
+full card with the same visual weight as real content.
+
+**Three specific, deliberate asks about the ONE accent color** (not more colors — more
+restraint): (1) teal now marks only the single active thing per zone — the Play
+button, and the currently-selected claim — inactive claims are quiet by design; (2) the
+absent-info panel (PRD's "maybe the single most useful screen") got its own identity:
+a `bg-accent/[0.06]` tint and a teal heading, not another white card; (3) the
+highlighted span in the original letter is a **solid** `bg-accent text-white` fill, not
+a border or underline — real visual weight for the one moment this whole feature exists
+to deliver.
+
+**Round 3, three more targeted fixes** after the user tried the actual running app:
+1. Play/Slow-replay buttons were dangerously close — root cause was two sibling
+   `<button>`s (inline-block by default) with only a vertical `mt-3` between them and
+   no flex container, so at `sm:` widths (where Play shrinks to fit-content) they could
+   sit on the same line with zero horizontal gap. Fixed with an explicit
+   `flex flex-wrap gap-4` wrapper.
+2. User reported the language selector felt "grouped with the playback controls"
+   despite it already sitting between the textarea and submit buttons (verified this
+   directly against the live app before changing anything, rather than assuming a bug)
+   — root cause was almost certainly that the gap above it (from the textarea) and
+   below it (to the submit buttons) were the identical `mt-5`, so it didn't visually
+   bind to either side. Fixed with asymmetric spacing: `mt-3` above (tight, part of the
+   paste step), `mt-8` below the language fieldset before the action-button row
+   (clearly separated from Explain/Try an example). Flagged this as a judgment call
+   rather than a literal fix, since the DOM order the user described was already
+   correct.
+3. Inactive claims were plain text on white with zero resting affordance — nothing
+   signaled "tappable" until the accent fill appeared on click. Added a quiet resting
+   card (`border border-rule bg-paper-raised`) distinct from both the plain page
+   background and the solid-teal active state, so the on/off contrast stays clear.
+
+`npm run build`, lint, `tsc --noEmit`, and all 111 tests clean throughout — every round
+of this pass was layout/styling only, no logic touched.
+
 ## INCIDENT: ran the Gemini free-tier quota dry mid-P3
 `gemini-3.5-flash` free tier is **20 requests/day per project**, resetting at midnight
 Pacific (confirmed against ai.google.dev/gemini-api/docs/rate-limits, not assumed). A new
@@ -464,3 +523,4 @@ on the one or two things that genuinely need a fresh one.
 | 2026-09-06 | P6 CLOSED | User rejected pasted-text evidence as insufficient and independently confirmed the Urdu AbsentPanel live in the browser against a running dev server: renders correctly, all three lines accurate to fixture 2's actual missing fields. Real quality gate, same standard as P5. ElevenLabs quota hit again during the check — expected/known limit, not a bug, no action taken; user will bring a fresh key for the demo recording. | P7 |
 | 2026-09-06 | P7 (code) | locateSpan.ts (fail-closed evidence→raw-offset finder, kept separate from spanGate.ts on purpose), LocatedClaim type, route.ts wiring, SourceHighlight.tsx, tappable verified-claims list in LetterInput.tsx. Declined mapping rendered prose sentences back to claims (unverified heuristic, same risk class as the P6 shortcut already declined) in favor of tapping the real verified claims directly — user's explicit call. 8 new locateSpan tests, 111 total green. Self-verified the full tap/highlight/toggle interaction in a real browser via a stubbed /api/explain response built from real fixture-1 substrings (zero live Gemini calls), including the disabled/unlocatable-claim fail-closed case. Added the English-label limitation to SUBMISSION-PLAN.md; also corrected a now-stale line there claiming Urdu was unaudited (it was reviewed and signed off at P5). | Wait for the user's own look at the interaction, then close P7 |
 | 2026-09-06 | P7 round 2 | User's first-look feedback: highlight required manual scrolling (layout never caught up to Tech Design's two-zone spec), and asked whether the disabled-claim path had genuinely fired or just never been tested against a real case. Built the two-column sticky/scrollable layout per §7. Found and fixed a real Chromium bug via direct reproduction: smooth-scrolling a position:sticky element's own overflow box silently no-ops; switched to instant scroll everywhere in this feature. Verified the mobile fallback path by forcing the real DOM into the mobile CSS shape rather than asserting it untested. Answered the disabled-claim question directly: fixture 1 is genuinely 6/6 locatable (a fact about that fixture, not a dead code path), and pointed to the existing synthetic unlocatable-claim proof already built into the verification harness, per the user's own instruction not to go hunting fixture 1 for a case that doesn't exist. 111 tests still green, build/lint/tsc clean. | Wait for the user's own look, then close P7 |
+| 2026-09-06 | P7 round 3 | User diagnosed a real structural problem precisely: the two columns still paired read-once explanation with tappable claims, recreating the scrolling problem one level up. Restructured to three zones (script+audio full-width, absent panel full-width, claims/letter paired columns) plus a real visual pass grounded in Tech Design §7 — differentiated card treatments by content type, real type hierarchy, no second typeface (deliberate call, agreed), debug JSON collapsed. Three deliberate, restrained uses of the one accent color: active claim + Play button only, a tinted identity for the absent panel, a solid (not bordered) highlight fill. Sent screenshots for review. Then three more targeted fixes from live testing: Play/Slow-replay had zero horizontal gap at sm+ (root cause: sibling inline-block buttons, no flex wrapper — real bug, not a style nit); language selector felt grouped with playback controls despite already being correctly positioned (verified live before touching anything; fixed with asymmetric spacing, not a DOM move); inactive claims had no resting affordance, now a quiet bordered card distinct from both the page background and the active teal fill. Build/lint/tsc/111 tests clean throughout. | Wait for the user's live look, then close P7 and move to P8 |

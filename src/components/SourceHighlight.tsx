@@ -82,7 +82,7 @@ export default function SourceHighlight({
           {sourceText.slice(0, span.start)}
           <mark
             ref={markRef}
-            className="rounded bg-accent/30 px-0.5 text-ink underline decoration-accent decoration-2 underline-offset-2"
+            className="rounded bg-accent px-1 py-0.5 text-white"
           >
             {sourceText.slice(span.start, span.end)}
           </mark>
